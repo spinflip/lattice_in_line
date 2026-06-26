@@ -17,6 +17,9 @@ dependencies = [
 [project.scripts]
 vmps-cluster-generator = "vmps_geometry.cluster_generator:main"
 vmps-bandwidth-certifier = "vmps_geometry.bandwidth_certifier:main"
+vmps-qubo-bandwidth = "vmps_geometry.qubo.bandwidth_qubo_tsq:main"
+vmps-qubo-classical-compare = "vmps_geometry.qubo.bandwidth_classical_compare:main"
+vmps-qubo-sweep = "vmps_geometry.qubo.sweep_bandwidth_qubo_tsq:main"
 
 [tool.setuptools]
 include-package-data = true
