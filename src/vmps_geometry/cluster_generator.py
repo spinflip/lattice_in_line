@@ -5,11 +5,11 @@ python make_cluster.py fcc --Nx 3 --Ny 3 --Nz 3
 python make_cluster.py hyperkagome --Nx 3 --Ny 2 --Nz 2
 python make_cluster.py pyrochlore --tilted 48a
 python make_cluster.py pyrochlore --supercell "2,1,0;0,3,0;0,0,4"
-python cluster_generator.py triangularYcyl --Nx 8 --Ny 4 --Nz 1
-python cluster_generator.py triangularXtorus --Nx 8 --Ny 4 --Nz 1
-python cluster_generator.py triangularBtorus --Nx 4 --Ny 4 --Nz 1
-python cluster_generator.py kagomeBtorus --Nx 6 --Ny 6 --Nz 1 \
-    --supersite-blocks geometry/supercell/kagomeBtorus108_6x6_ss2_assignment.txt
+python -m vmps_geometry.cluster_generator triangularYcyl --Nx 8 --Ny 4 --Nz 1
+python -m vmps_geometry.cluster_generator triangularXtorus --Nx 8 --Ny 4 --Nz 1
+python -m vmps_geometry.cluster_generator triangularBtorus --Nx 4 --Ny 4 --Nz 1
+python -m vmps_geometry.cluster_generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1 \
+    --supersite-blocks path/to/kagomeBtorus108_6x6_ss2_assignment.txt
 """
 from __future__ import annotations
 

@@ -1,23 +1,22 @@
 # vmps_geometry
 
 Geometry helpers, cluster graph tables, optimized permutations, supersite
-assignments, and unit-cell generators used by `vmps_torch`.
+assignments, and unit-cell generators for VMPS-style lattice models.
 
 ## Editable Development
 
-This repository is intended to live next to `vmps_torch`:
+Install this repository editably during development:
 
 ```bash
-cd /Users/rr/VMPSbundle/vmps_geometry
-pip install -e .
-
-cd /Users/rr/VMPSbundle/vmps_torch
+cd /path/to/vmps_geometry
 pip install -e .
 ```
 
 The import package is `vmps_geometry`.
 
-## Compatibility
+## Command-Line Helpers
 
-`vmps_torch` keeps a temporary `vmps_torch.geometry` compatibility namespace
-that re-exports this package, so existing scripts can migrate gradually.
+```bash
+vmps-cluster-generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1
+vmps-bandwidth-certifier --help
+```
