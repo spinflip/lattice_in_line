@@ -37,6 +37,19 @@ class MissingPermutationEntry(ValueError):
     """Raised when an optional permutation table has no entry for a graph."""
 
 
+def resolve_geometry_path(path) -> Path:
+    """Resolve plain paths plus legacy ``geometry/...`` paths into this package."""
+    raw = Path(path).expanduser()
+    if raw.is_file():
+        return raw
+    parts = raw.parts
+    if "geometry" in parts:
+        idx = parts.index("geometry")
+        candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
+        if candidate.is_file():
+            return candidate
+    return raw
+
 
 def cluster_names() -> List[str]:
     return list(CLUSTER_EDGES.keys())
@@ -324,7 +337,7 @@ def split_unit_cell_hopping_density_ph_params(path, params: Mapping[str, object]
     if not density_inputs and not ph_density_inputs:
         return hopping_params, None, None
 
-    unit_path = Path(path)
+    unit_path = resolve_geometry_path(path)
     if unit_path.suffix.lower() != ".py":
         raise ValueError("Unit-cell V*/Vph* aliases are only supported for Python unit-cell files")
     module = _load_python_geometry_module(unit_path)
@@ -367,7 +380,7 @@ def split_unit_cell_hopping_density_params(path, params: Mapping[str, object] | 
 
 
 def _load_cluster_file_payload(path, *, params: Mapping[str, object] | None = None) -> object:
-    cluster_path = Path(path)
+    cluster_path = resolve_geometry_path(path)
     text = cluster_path.read_text(encoding="utf-8")
     suffix = cluster_path.suffix.lower()
     if suffix == ".py" and (params or "def build" in text):
@@ -531,7 +544,7 @@ def load_cluster_file_edges(path) -> Tuple[int, WeightedEdgeList]:
 def cluster_file_ordering_permutation(path, *, ordering: str = "rcm") -> List[int]:
     L, weighted_edges = load_cluster_file_edges(path)
     edges = [(i, j) for i, j, _ in weighted_edges]
-    perm, _ = _resolve_ordering_permutation(L, edges, ordering=ordering, key=Path(path).stem)
+    perm, _ = _resolve_ordering_permutation(L, edges, ordering=ordering, key=resolve_geometry_path(path).stem)
     return perm
 
 
@@ -546,7 +559,7 @@ def _ordered_cluster_file_edges(
         L,
         [(i, j) for i, j, _ in weighted_edges],
         ordering=ordering,
-        key=Path(path).stem,
+        key=resolve_geometry_path(path).stem,
     )
     relabeled = []
     for i, j, coupling in weighted_edges:
@@ -557,7 +570,7 @@ def _ordered_cluster_file_edges(
     relabeled.sort(key=lambda item: (item[0], item[1], item[2]))
 
     if verbose:
-        cluster_path = Path(path)
+        cluster_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{cluster_path.name} ordering ({ordering_label}): {perm_str}")
         spans = [j - i for i, j, _ in relabeled]
@@ -582,7 +595,7 @@ def cluster_file_coupling_matrix(
 ) -> torch.Tensor:
     """Return an upper-triangular J_ij matrix from a user-supplied cluster file."""
     if device is None:
-        device = get_device()
+        device = torch.device("cpu")
     L, weighted_edges = _ordered_cluster_file_edges(path, ordering=ordering, verbose=True)
     out = torch.zeros((L, L), dtype=dtype, device=device)
     for i, j, coupling in weighted_edges:
@@ -735,7 +748,7 @@ def unit_cell_file_ordering_permutation(path, L: int, *, boundary: str = "open",
                                         params: Mapping[str, object] | None = None) -> List[int]:
     L, weighted_edges = load_unit_cell_file_edges(path, L, boundary=boundary, params=params)
     edges = [(i, j) for i, j, _ in weighted_edges]
-    perm, _ = _resolve_ordering_permutation(L, edges, ordering=ordering, key=Path(path).stem)
+    perm, _ = _resolve_ordering_permutation(L, edges, ordering=ordering, key=resolve_geometry_path(path).stem)
     return perm
 
 
@@ -782,12 +795,12 @@ def unit_cell_file_hopping_matrix_and_sublattice(
 ) -> Tuple[torch.Tensor, List[int]]:
     """Return ordered upper-triangular hopping matrix and ordered bipartition."""
     if device is None:
-        device = get_device()
+        device = torch.device("cpu")
     L, weighted_edges = load_unit_cell_file_edges(path, L, boundary=boundary, params=params)
     edges = [(i, j) for i, j, _ in weighted_edges]
     sublattice = infer_bipartite_sublattice(L, edges)
     perm, ordering_label = _resolve_ordering_permutation(
-        L, edges, ordering=ordering, key=Path(path).stem
+        L, edges, ordering=ordering, key=resolve_geometry_path(path).stem
     )
     ordered_sublattice = [0] * L
     for old, new in enumerate(perm):
@@ -805,7 +818,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
     for i, j, hopping in relabeled:
         out[i, j] = hopping
 
-    unit_cell_path = Path(path)
+    unit_cell_path = resolve_geometry_path(path)
     perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
     print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
     spans = [j - i for i, j, _ in relabeled]
@@ -846,7 +859,7 @@ def _ordered_unit_cell_file_edges(
         L,
         [(i, j) for i, j, _ in ordering_edges],
         ordering=ordering,
-        key=Path(path).stem,
+        key=resolve_geometry_path(path).stem,
     )
     relabeled = []
     for i, j, coupling in weighted_edges:
@@ -857,7 +870,7 @@ def _ordered_unit_cell_file_edges(
     relabeled.sort(key=lambda item: (item[0], item[1], item[2]))
 
     if verbose:
-        unit_cell_path = Path(path)
+        unit_cell_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
         spans = [j - i for i, j, _ in relabeled]
@@ -889,7 +902,7 @@ def unit_cell_file_coupling_matrix(
 ) -> torch.Tensor:
     """Return an ordered upper-triangular J_ij matrix from a repeated unit-cell file."""
     if device is None:
-        device = get_device()
+        device = torch.device("cpu")
     L, weighted_edges = _ordered_unit_cell_file_edges(
         path,
         L,

@@ -24,6 +24,8 @@ from pathlib import Path
 from fractions import Fraction
 from typing import Dict, List, Sequence, Tuple
 
+from .cluster_graphs import resolve_geometry_path
+
 
 Vec3 = Tuple[float, float, float]
 IVec3 = Tuple[int, int, int]
@@ -1632,7 +1634,7 @@ def plot_lattice(
 
 def load_plot_supersite_blocks(path_text: str, n_sites: int) -> List[List[int]]:
     """Load and validate supersite blocks in their chain order for plotting."""
-    path = Path(path_text).expanduser()
+    path = resolve_geometry_path(path_text)
     if path.suffix.lower() == ".txt":
         marker = "blocks in chain order:"
         line = next(
