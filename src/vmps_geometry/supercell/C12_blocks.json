@@ -1,0 +1,220 @@
+{
+ "cluster": "C12",
+ "block_size": 2,
+ "num_supersites": 6,
+ "num_sites": 12,
+ "num_edges_total": 18,
+ "num_intra_edges": 3,
+ "num_inter_edges": 15,
+ "supersite_bandwidth": 2,
+ "max_chain_distance": 2,
+ "chain_order": [
+  [
+   0,
+   1
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   4,
+   5
+  ],
+  [
+   6,
+   7
+  ],
+  [
+   8,
+   9
+  ],
+  [
+   10,
+   11
+  ]
+ ],
+ "intra_supersite": [
+  {
+   "supersite": 0,
+   "sites": [
+    0,
+    1
+   ],
+   "internal_edges": [
+    {
+     "u": 0,
+     "v": 1
+    }
+   ]
+  },
+  {
+   "supersite": 1,
+   "sites": [
+    2,
+    3
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 2,
+   "sites": [
+    4,
+    5
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 3,
+   "sites": [
+    6,
+    7
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 4,
+   "sites": [
+    8,
+    9
+   ],
+   "internal_edges": [
+    {
+     "u": 8,
+     "v": 9
+    }
+   ]
+  },
+  {
+   "supersite": 5,
+   "sites": [
+    10,
+    11
+   ],
+   "internal_edges": [
+    {
+     "u": 10,
+     "v": 11
+    }
+   ]
+  }
+ ],
+ "inter_supersite": [
+  {
+   "supersite_a": 0,
+   "supersite_b": 1,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 0,
+     "v": 2
+    },
+    {
+     "u": 0,
+     "v": 3
+    },
+    {
+     "u": 1,
+     "v": 3
+    }
+   ]
+  },
+  {
+   "supersite_a": 0,
+   "supersite_b": 2,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 1,
+     "v": 4
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 2,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 2,
+     "v": 5
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 3,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 2,
+     "v": 6
+    },
+    {
+     "u": 3,
+     "v": 7
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 3,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 5,
+     "v": 6
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 4,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 4,
+     "v": 8
+    },
+    {
+     "u": 4,
+     "v": 9
+    },
+    {
+     "u": 5,
+     "v": 8
+    }
+   ]
+  },
+  {
+   "supersite_a": 3,
+   "supersite_b": 5,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 6,
+     "v": 10
+    },
+    {
+     "u": 7,
+     "v": 10
+    },
+    {
+     "u": 7,
+     "v": 11
+    }
+   ]
+  },
+  {
+   "supersite_a": 4,
+   "supersite_b": 5,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 9,
+     "v": 11
+    }
+   ]
+  }
+ ]
+}

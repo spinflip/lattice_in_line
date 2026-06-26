@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vmps_geometry"
+version = "0.1.0"
+description = "Geometry helpers, cluster graphs, permutations, and unit-cell files for VMPS"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "torch",
+]
+
+[project.scripts]
+vmps-cluster-generator = "vmps_geometry.cluster_generator:main"
+vmps-bandwidth-certifier = "vmps_geometry.bandwidth_certifier:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vmps_geometry = [
+    "supercell/*.json",
+    "supercell/*.txt",
+    "supercell_heur/*.txt",
+    "unit_cell/*.py",
+    "*.sh",
+]

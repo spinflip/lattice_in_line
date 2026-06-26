@@ -1,0 +1,2681 @@
+{
+ "cluster": "kagomeBtorus108_6x6",
+ "block_size": 2,
+ "num_supersites": 54,
+ "num_sites": 108,
+ "num_edges_total": 216,
+ "num_intra_edges": 18,
+ "num_inter_edges": 198,
+ "supersite_bandwidth": 10,
+ "max_chain_distance": 10,
+ "chain_order": [
+  [
+   0,
+   1
+  ],
+  [
+   80,
+   95
+  ],
+  [
+   33,
+   94
+  ],
+  [
+   65,
+   79
+  ],
+  [
+   16,
+   17
+  ],
+  [
+   48,
+   93
+  ],
+  [
+   50,
+   64
+  ],
+  [
+   35,
+   49
+  ],
+  [
+   2,
+   34
+  ],
+  [
+   3,
+   96
+  ],
+  [
+   91,
+   92
+  ],
+  [
+   63,
+   78
+  ],
+  [
+   31,
+   32
+  ],
+  [
+   76,
+   81
+  ],
+  [
+   15,
+   77
+  ],
+  [
+   46,
+   97
+  ],
+  [
+   47,
+   66
+  ],
+  [
+   18,
+   51
+  ],
+  [
+   4,
+   98
+  ],
+  [
+   5,
+   19
+  ],
+  [
+   13,
+   90
+  ],
+  [
+   61,
+   62
+  ],
+  [
+   30,
+   83
+  ],
+  [
+   75,
+   82
+  ],
+  [
+   68,
+   107
+  ],
+  [
+   45,
+   99
+  ],
+  [
+   53,
+   67
+  ],
+  [
+   20,
+   52
+  ],
+  [
+   6,
+   106
+  ],
+  [
+   14,
+   21
+  ],
+  [
+   12,
+   74
+  ],
+  [
+   60,
+   73
+  ],
+  [
+   28,
+   59
+  ],
+  [
+   29,
+   84
+  ],
+  [
+   101,
+   105
+  ],
+  [
+   43,
+   100
+  ],
+  [
+   44,
+   69
+  ],
+  [
+   36,
+   104
+  ],
+  [
+   7,
+   8
+  ],
+  [
+   22,
+   23
+  ],
+  [
+   10,
+   72
+  ],
+  [
+   58,
+   85
+  ],
+  [
+   27,
+   57
+  ],
+  [
+   9,
+   86
+  ],
+  [
+   89,
+   103
+  ],
+  [
+   42,
+   102
+  ],
+  [
+   70,
+   71
+  ],
+  [
+   37,
+   38
+  ],
+  [
+   24,
+   88
+  ],
+  [
+   39,
+   56
+  ],
+  [
+   11,
+   55
+  ],
+  [
+   26,
+   87
+  ],
+  [
+   25,
+   41
+  ],
+  [
+   40,
+   54
+  ]
+ ],
+ "intra_supersite": [
+  {
+   "supersite": 0,
+   "sites": [
+    0,
+    1
+   ],
+   "internal_edges": [
+    {
+     "u": 0,
+     "v": 1
+    }
+   ]
+  },
+  {
+   "supersite": 1,
+   "sites": [
+    80,
+    95
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 2,
+   "sites": [
+    33,
+    94
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 3,
+   "sites": [
+    65,
+    79
+   ],
+   "internal_edges": [
+    {
+     "u": 65,
+     "v": 79
+    }
+   ]
+  },
+  {
+   "supersite": 4,
+   "sites": [
+    16,
+    17
+   ],
+   "internal_edges": [
+    {
+     "u": 16,
+     "v": 17
+    }
+   ]
+  },
+  {
+   "supersite": 5,
+   "sites": [
+    48,
+    93
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 6,
+   "sites": [
+    50,
+    64
+   ],
+   "internal_edges": [
+    {
+     "u": 50,
+     "v": 64
+    }
+   ]
+  },
+  {
+   "supersite": 7,
+   "sites": [
+    35,
+    49
+   ],
+   "internal_edges": [
+    {
+     "u": 35,
+     "v": 49
+    }
+   ]
+  },
+  {
+   "supersite": 8,
+   "sites": [
+    2,
+    34
+   ],
+   "internal_edges": [
+    {
+     "u": 2,
+     "v": 34
+    }
+   ]
+  },
+  {
+   "supersite": 9,
+   "sites": [
+    3,
+    96
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 10,
+   "sites": [
+    91,
+    92
+   ],
+   "internal_edges": [
+    {
+     "u": 91,
+     "v": 92
+    }
+   ]
+  },
+  {
+   "supersite": 11,
+   "sites": [
+    63,
+    78
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 12,
+   "sites": [
+    31,
+    32
+   ],
+   "internal_edges": [
+    {
+     "u": 31,
+     "v": 32
+    }
+   ]
+  },
+  {
+   "supersite": 13,
+   "sites": [
+    76,
+    81
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 14,
+   "sites": [
+    15,
+    77
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 15,
+   "sites": [
+    46,
+    97
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 16,
+   "sites": [
+    47,
+    66
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 17,
+   "sites": [
+    18,
+    51
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 18,
+   "sites": [
+    4,
+    98
+   ],
+   "internal_edges": [
+    {
+     "u": 4,
+     "v": 98
+    }
+   ]
+  },
+  {
+   "supersite": 19,
+   "sites": [
+    5,
+    19
+   ],
+   "internal_edges": [
+    {
+     "u": 5,
+     "v": 19
+    }
+   ]
+  },
+  {
+   "supersite": 20,
+   "sites": [
+    13,
+    90
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 21,
+   "sites": [
+    61,
+    62
+   ],
+   "internal_edges": [
+    {
+     "u": 61,
+     "v": 62
+    }
+   ]
+  },
+  {
+   "supersite": 22,
+   "sites": [
+    30,
+    83
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 23,
+   "sites": [
+    75,
+    82
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 24,
+   "sites": [
+    68,
+    107
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 25,
+   "sites": [
+    45,
+    99
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 26,
+   "sites": [
+    53,
+    67
+   ],
+   "internal_edges": [
+    {
+     "u": 53,
+     "v": 67
+    }
+   ]
+  },
+  {
+   "supersite": 27,
+   "sites": [
+    20,
+    52
+   ],
+   "internal_edges": [
+    {
+     "u": 20,
+     "v": 52
+    }
+   ]
+  },
+  {
+   "supersite": 28,
+   "sites": [
+    6,
+    106
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 29,
+   "sites": [
+    14,
+    21
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 30,
+   "sites": [
+    12,
+    74
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 31,
+   "sites": [
+    60,
+    73
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 32,
+   "sites": [
+    28,
+    59
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 33,
+   "sites": [
+    29,
+    84
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 34,
+   "sites": [
+    101,
+    105
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 35,
+   "sites": [
+    43,
+    100
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 36,
+   "sites": [
+    44,
+    69
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 37,
+   "sites": [
+    36,
+    104
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 38,
+   "sites": [
+    7,
+    8
+   ],
+   "internal_edges": [
+    {
+     "u": 7,
+     "v": 8
+    }
+   ]
+  },
+  {
+   "supersite": 39,
+   "sites": [
+    22,
+    23
+   ],
+   "internal_edges": [
+    {
+     "u": 22,
+     "v": 23
+    }
+   ]
+  },
+  {
+   "supersite": 40,
+   "sites": [
+    10,
+    72
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 41,
+   "sites": [
+    58,
+    85
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 42,
+   "sites": [
+    27,
+    57
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 43,
+   "sites": [
+    9,
+    86
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 44,
+   "sites": [
+    89,
+    103
+   ],
+   "internal_edges": [
+    {
+     "u": 89,
+     "v": 103
+    }
+   ]
+  },
+  {
+   "supersite": 45,
+   "sites": [
+    42,
+    102
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 46,
+   "sites": [
+    70,
+    71
+   ],
+   "internal_edges": [
+    {
+     "u": 70,
+     "v": 71
+    }
+   ]
+  },
+  {
+   "supersite": 47,
+   "sites": [
+    37,
+    38
+   ],
+   "internal_edges": [
+    {
+     "u": 37,
+     "v": 38
+    }
+   ]
+  },
+  {
+   "supersite": 48,
+   "sites": [
+    24,
+    88
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 49,
+   "sites": [
+    39,
+    56
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 50,
+   "sites": [
+    11,
+    55
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 51,
+   "sites": [
+    26,
+    87
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 52,
+   "sites": [
+    25,
+    41
+   ],
+   "internal_edges": []
+  },
+  {
+   "supersite": 53,
+   "sites": [
+    40,
+    54
+   ],
+   "internal_edges": []
+  }
+ ],
+ "inter_supersite": [
+  {
+   "supersite_a": 0,
+   "supersite_b": 1,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 1,
+     "v": 95
+    }
+   ]
+  },
+  {
+   "supersite_a": 0,
+   "supersite_b": 4,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 0,
+     "v": 16
+    }
+   ]
+  },
+  {
+   "supersite_a": 0,
+   "supersite_b": 8,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 0,
+     "v": 2
+    },
+    {
+     "u": 1,
+     "v": 2
+    }
+   ]
+  },
+  {
+   "supersite_a": 0,
+   "supersite_b": 9,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 1,
+     "v": 3
+    }
+   ]
+  },
+  {
+   "supersite_a": 0,
+   "supersite_b": 10,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 0,
+     "v": 92
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 2,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 80,
+     "v": 94
+    },
+    {
+     "u": 94,
+     "v": 95
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 3,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 79,
+     "v": 80
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 5,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 93,
+     "v": 95
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 9,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 3,
+     "v": 95
+    },
+    {
+     "u": 80,
+     "v": 96
+    }
+   ]
+  },
+  {
+   "supersite_a": 1,
+   "supersite_b": 11,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 78,
+     "v": 80
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 4,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 17,
+     "v": 33
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 5,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 93,
+     "v": 94
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 7,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 33,
+     "v": 35
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 8,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 33,
+     "v": 34
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 9,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 94,
+     "v": 96
+    }
+   ]
+  },
+  {
+   "supersite_a": 2,
+   "supersite_b": 12,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 31,
+     "v": 33
+    }
+   ]
+  },
+  {
+   "supersite_a": 3,
+   "supersite_b": 6,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 64,
+     "v": 65
+    }
+   ]
+  },
+  {
+   "supersite_a": 3,
+   "supersite_b": 11,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 63,
+     "v": 65
+    },
+    {
+     "u": 78,
+     "v": 79
+    }
+   ]
+  },
+  {
+   "supersite_a": 3,
+   "supersite_b": 13,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 65,
+     "v": 81
+    },
+    {
+     "u": 79,
+     "v": 81
+    }
+   ]
+  },
+  {
+   "supersite_a": 4,
+   "supersite_b": 10,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 16,
+     "v": 92
+    }
+   ]
+  },
+  {
+   "supersite_a": 4,
+   "supersite_b": 12,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 17,
+     "v": 31
+    }
+   ]
+  },
+  {
+   "supersite_a": 4,
+   "supersite_b": 14,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 15,
+     "v": 16
+    },
+    {
+     "u": 15,
+     "v": 17
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 6,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 48,
+     "v": 50
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 7,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 48,
+     "v": 49
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 10,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 91,
+     "v": 93
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 12,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 32,
+     "v": 48
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 14,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 77,
+     "v": 93
+    }
+   ]
+  },
+  {
+   "supersite_a": 5,
+   "supersite_b": 15,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 46,
+     "v": 48
+    }
+   ]
+  },
+  {
+   "supersite_a": 6,
+   "supersite_b": 7,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 49,
+     "v": 50
+    }
+   ]
+  },
+  {
+   "supersite_a": 6,
+   "supersite_b": 11,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 63,
+     "v": 64
+    }
+   ]
+  },
+  {
+   "supersite_a": 6,
+   "supersite_b": 16,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 50,
+     "v": 66
+    },
+    {
+     "u": 64,
+     "v": 66
+    }
+   ]
+  },
+  {
+   "supersite_a": 7,
+   "supersite_b": 8,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 34,
+     "v": 35
+    }
+   ]
+  },
+  {
+   "supersite_a": 7,
+   "supersite_b": 17,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 35,
+     "v": 51
+    },
+    {
+     "u": 49,
+     "v": 51
+    }
+   ]
+  },
+  {
+   "supersite_a": 8,
+   "supersite_b": 17,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 2,
+     "v": 18
+    },
+    {
+     "u": 18,
+     "v": 34
+    }
+   ]
+  },
+  {
+   "supersite_a": 9,
+   "supersite_b": 15,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 96,
+     "v": 97
+    }
+   ]
+  },
+  {
+   "supersite_a": 9,
+   "supersite_b": 18,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 3,
+     "v": 4
+    },
+    {
+     "u": 96,
+     "v": 98
+    }
+   ]
+  },
+  {
+   "supersite_a": 9,
+   "supersite_b": 19,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 3,
+     "v": 5
+    }
+   ]
+  },
+  {
+   "supersite_a": 10,
+   "supersite_b": 14,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 77,
+     "v": 91
+    }
+   ]
+  },
+  {
+   "supersite_a": 10,
+   "supersite_b": 20,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 90,
+     "v": 91
+    },
+    {
+     "u": 90,
+     "v": 92
+    }
+   ]
+  },
+  {
+   "supersite_a": 11,
+   "supersite_b": 13,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 76,
+     "v": 78
+    }
+   ]
+  },
+  {
+   "supersite_a": 11,
+   "supersite_b": 16,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 47,
+     "v": 63
+    }
+   ]
+  },
+  {
+   "supersite_a": 11,
+   "supersite_b": 21,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 61,
+     "v": 63
+    },
+    {
+     "u": 62,
+     "v": 78
+    }
+   ]
+  },
+  {
+   "supersite_a": 12,
+   "supersite_b": 15,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 32,
+     "v": 46
+    }
+   ]
+  },
+  {
+   "supersite_a": 12,
+   "supersite_b": 22,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 30,
+     "v": 31
+    },
+    {
+     "u": 30,
+     "v": 32
+    }
+   ]
+  },
+  {
+   "supersite_a": 13,
+   "supersite_b": 14,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 76,
+     "v": 77
+    }
+   ]
+  },
+  {
+   "supersite_a": 13,
+   "supersite_b": 21,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 62,
+     "v": 76
+    }
+   ]
+  },
+  {
+   "supersite_a": 13,
+   "supersite_b": 22,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 81,
+     "v": 83
+    }
+   ]
+  },
+  {
+   "supersite_a": 13,
+   "supersite_b": 23,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 75,
+     "v": 76
+    },
+    {
+     "u": 81,
+     "v": 82
+    }
+   ]
+  },
+  {
+   "supersite_a": 14,
+   "supersite_b": 20,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 13,
+     "v": 15
+    }
+   ]
+  },
+  {
+   "supersite_a": 14,
+   "supersite_b": 23,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 75,
+     "v": 77
+    }
+   ]
+  },
+  {
+   "supersite_a": 14,
+   "supersite_b": 24,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 15,
+     "v": 107
+    }
+   ]
+  },
+  {
+   "supersite_a": 15,
+   "supersite_b": 16,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 46,
+     "v": 47
+    }
+   ]
+  },
+  {
+   "supersite_a": 15,
+   "supersite_b": 18,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 97,
+     "v": 98
+    }
+   ]
+  },
+  {
+   "supersite_a": 15,
+   "supersite_b": 22,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 83,
+     "v": 97
+    }
+   ]
+  },
+  {
+   "supersite_a": 15,
+   "supersite_b": 25,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 45,
+     "v": 46
+    },
+    {
+     "u": 97,
+     "v": 99
+    }
+   ]
+  },
+  {
+   "supersite_a": 16,
+   "supersite_b": 21,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 47,
+     "v": 61
+    }
+   ]
+  },
+  {
+   "supersite_a": 16,
+   "supersite_b": 24,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 66,
+     "v": 68
+    }
+   ]
+  },
+  {
+   "supersite_a": 16,
+   "supersite_b": 25,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 45,
+     "v": 47
+    }
+   ]
+  },
+  {
+   "supersite_a": 16,
+   "supersite_b": 26,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 66,
+     "v": 67
+    }
+   ]
+  },
+  {
+   "supersite_a": 17,
+   "supersite_b": 19,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 18,
+     "v": 19
+    }
+   ]
+  },
+  {
+   "supersite_a": 17,
+   "supersite_b": 26,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 51,
+     "v": 53
+    }
+   ]
+  },
+  {
+   "supersite_a": 17,
+   "supersite_b": 27,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 18,
+     "v": 20
+    },
+    {
+     "u": 51,
+     "v": 52
+    }
+   ]
+  },
+  {
+   "supersite_a": 18,
+   "supersite_b": 19,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 4,
+     "v": 5
+    }
+   ]
+  },
+  {
+   "supersite_a": 18,
+   "supersite_b": 28,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 4,
+     "v": 6
+    },
+    {
+     "u": 6,
+     "v": 98
+    }
+   ]
+  },
+  {
+   "supersite_a": 19,
+   "supersite_b": 27,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 19,
+     "v": 20
+    }
+   ]
+  },
+  {
+   "supersite_a": 19,
+   "supersite_b": 29,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 5,
+     "v": 21
+    },
+    {
+     "u": 19,
+     "v": 21
+    }
+   ]
+  },
+  {
+   "supersite_a": 20,
+   "supersite_b": 24,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 13,
+     "v": 107
+    }
+   ]
+  },
+  {
+   "supersite_a": 20,
+   "supersite_b": 28,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 90,
+     "v": 106
+    }
+   ]
+  },
+  {
+   "supersite_a": 20,
+   "supersite_b": 29,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 13,
+     "v": 14
+    }
+   ]
+  },
+  {
+   "supersite_a": 20,
+   "supersite_b": 30,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 12,
+     "v": 13
+    },
+    {
+     "u": 74,
+     "v": 90
+    }
+   ]
+  },
+  {
+   "supersite_a": 21,
+   "supersite_b": 31,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 60,
+     "v": 61
+    },
+    {
+     "u": 60,
+     "v": 62
+    }
+   ]
+  },
+  {
+   "supersite_a": 22,
+   "supersite_b": 23,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 82,
+     "v": 83
+    }
+   ]
+  },
+  {
+   "supersite_a": 22,
+   "supersite_b": 25,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 83,
+     "v": 99
+    }
+   ]
+  },
+  {
+   "supersite_a": 22,
+   "supersite_b": 29,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 14,
+     "v": 30
+    }
+   ]
+  },
+  {
+   "supersite_a": 22,
+   "supersite_b": 32,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 28,
+     "v": 30
+    }
+   ]
+  },
+  {
+   "supersite_a": 23,
+   "supersite_b": 24,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 68,
+     "v": 82
+    }
+   ]
+  },
+  {
+   "supersite_a": 23,
+   "supersite_b": 31,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 73,
+     "v": 75
+    }
+   ]
+  },
+  {
+   "supersite_a": 23,
+   "supersite_b": 32,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 59,
+     "v": 75
+    }
+   ]
+  },
+  {
+   "supersite_a": 23,
+   "supersite_b": 33,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 82,
+     "v": 84
+    }
+   ]
+  },
+  {
+   "supersite_a": 24,
+   "supersite_b": 26,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 67,
+     "v": 68
+    }
+   ]
+  },
+  {
+   "supersite_a": 24,
+   "supersite_b": 28,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 106,
+     "v": 107
+    }
+   ]
+  },
+  {
+   "supersite_a": 24,
+   "supersite_b": 33,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 68,
+     "v": 84
+    }
+   ]
+  },
+  {
+   "supersite_a": 24,
+   "supersite_b": 34,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 105,
+     "v": 107
+    }
+   ]
+  },
+  {
+   "supersite_a": 25,
+   "supersite_b": 33,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 29,
+     "v": 45
+    }
+   ]
+  },
+  {
+   "supersite_a": 25,
+   "supersite_b": 34,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 99,
+     "v": 101
+    }
+   ]
+  },
+  {
+   "supersite_a": 25,
+   "supersite_b": 35,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 43,
+     "v": 45
+    },
+    {
+     "u": 99,
+     "v": 100
+    }
+   ]
+  },
+  {
+   "supersite_a": 26,
+   "supersite_b": 27,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 52,
+     "v": 53
+    }
+   ]
+  },
+  {
+   "supersite_a": 26,
+   "supersite_b": 36,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 53,
+     "v": 69
+    },
+    {
+     "u": 67,
+     "v": 69
+    }
+   ]
+  },
+  {
+   "supersite_a": 27,
+   "supersite_b": 37,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 20,
+     "v": 36
+    },
+    {
+     "u": 36,
+     "v": 52
+    }
+   ]
+  },
+  {
+   "supersite_a": 28,
+   "supersite_b": 30,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 74,
+     "v": 106
+    }
+   ]
+  },
+  {
+   "supersite_a": 28,
+   "supersite_b": 34,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 105,
+     "v": 106
+    }
+   ]
+  },
+  {
+   "supersite_a": 28,
+   "supersite_b": 38,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 6,
+     "v": 7
+    },
+    {
+     "u": 6,
+     "v": 8
+    }
+   ]
+  },
+  {
+   "supersite_a": 29,
+   "supersite_b": 30,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 12,
+     "v": 14
+    }
+   ]
+  },
+  {
+   "supersite_a": 29,
+   "supersite_b": 32,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 14,
+     "v": 28
+    }
+   ]
+  },
+  {
+   "supersite_a": 29,
+   "supersite_b": 39,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 21,
+     "v": 22
+    },
+    {
+     "u": 21,
+     "v": 23
+    }
+   ]
+  },
+  {
+   "supersite_a": 30,
+   "supersite_b": 31,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 73,
+     "v": 74
+    }
+   ]
+  },
+  {
+   "supersite_a": 30,
+   "supersite_b": 37,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 12,
+     "v": 104
+    }
+   ]
+  },
+  {
+   "supersite_a": 30,
+   "supersite_b": 40,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 10,
+     "v": 12
+    },
+    {
+     "u": 72,
+     "v": 74
+    }
+   ]
+  },
+  {
+   "supersite_a": 31,
+   "supersite_b": 32,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 59,
+     "v": 73
+    }
+   ]
+  },
+  {
+   "supersite_a": 31,
+   "supersite_b": 36,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 44,
+     "v": 60
+    }
+   ]
+  },
+  {
+   "supersite_a": 31,
+   "supersite_b": 40,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 72,
+     "v": 73
+    }
+   ]
+  },
+  {
+   "supersite_a": 31,
+   "supersite_b": 41,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 58,
+     "v": 60
+    }
+   ]
+  },
+  {
+   "supersite_a": 32,
+   "supersite_b": 33,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 28,
+     "v": 29
+    }
+   ]
+  },
+  {
+   "supersite_a": 32,
+   "supersite_b": 41,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 58,
+     "v": 59
+    }
+   ]
+  },
+  {
+   "supersite_a": 32,
+   "supersite_b": 42,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 27,
+     "v": 28
+    },
+    {
+     "u": 57,
+     "v": 59
+    }
+   ]
+  },
+  {
+   "supersite_a": 33,
+   "supersite_b": 35,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 29,
+     "v": 43
+    }
+   ]
+  },
+  {
+   "supersite_a": 33,
+   "supersite_b": 41,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 84,
+     "v": 85
+    }
+   ]
+  },
+  {
+   "supersite_a": 33,
+   "supersite_b": 42,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 27,
+     "v": 29
+    }
+   ]
+  },
+  {
+   "supersite_a": 33,
+   "supersite_b": 43,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 84,
+     "v": 86
+    }
+   ]
+  },
+  {
+   "supersite_a": 34,
+   "supersite_b": 35,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 100,
+     "v": 101
+    }
+   ]
+  },
+  {
+   "supersite_a": 34,
+   "supersite_b": 38,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 7,
+     "v": 101
+    }
+   ]
+  },
+  {
+   "supersite_a": 34,
+   "supersite_b": 43,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 9,
+     "v": 101
+    }
+   ]
+  },
+  {
+   "supersite_a": 34,
+   "supersite_b": 44,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 89,
+     "v": 105
+    },
+    {
+     "u": 103,
+     "v": 105
+    }
+   ]
+  },
+  {
+   "supersite_a": 35,
+   "supersite_b": 36,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 43,
+     "v": 44
+    }
+   ]
+  },
+  {
+   "supersite_a": 35,
+   "supersite_b": 43,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 86,
+     "v": 100
+    }
+   ]
+  },
+  {
+   "supersite_a": 35,
+   "supersite_b": 45,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 42,
+     "v": 43
+    },
+    {
+     "u": 100,
+     "v": 102
+    }
+   ]
+  },
+  {
+   "supersite_a": 36,
+   "supersite_b": 41,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 44,
+     "v": 58
+    }
+   ]
+  },
+  {
+   "supersite_a": 36,
+   "supersite_b": 45,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 42,
+     "v": 44
+    }
+   ]
+  },
+  {
+   "supersite_a": 36,
+   "supersite_b": 46,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 69,
+     "v": 70
+    },
+    {
+     "u": 69,
+     "v": 71
+    }
+   ]
+  },
+  {
+   "supersite_a": 37,
+   "supersite_b": 40,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 10,
+     "v": 104
+    }
+   ]
+  },
+  {
+   "supersite_a": 37,
+   "supersite_b": 44,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 103,
+     "v": 104
+    }
+   ]
+  },
+  {
+   "supersite_a": 37,
+   "supersite_b": 45,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 102,
+     "v": 104
+    }
+   ]
+  },
+  {
+   "supersite_a": 37,
+   "supersite_b": 47,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 36,
+     "v": 37
+    },
+    {
+     "u": 36,
+     "v": 38
+    }
+   ]
+  },
+  {
+   "supersite_a": 38,
+   "supersite_b": 39,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 8,
+     "v": 22
+    }
+   ]
+  },
+  {
+   "supersite_a": 38,
+   "supersite_b": 43,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 7,
+     "v": 9
+    }
+   ]
+  },
+  {
+   "supersite_a": 38,
+   "supersite_b": 48,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 8,
+     "v": 24
+    }
+   ]
+  },
+  {
+   "supersite_a": 39,
+   "supersite_b": 47,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 23,
+     "v": 37
+    }
+   ]
+  },
+  {
+   "supersite_a": 39,
+   "supersite_b": 48,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 22,
+     "v": 24
+    }
+   ]
+  },
+  {
+   "supersite_a": 39,
+   "supersite_b": 49,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 23,
+     "v": 39
+    }
+   ]
+  },
+  {
+   "supersite_a": 40,
+   "supersite_b": 43,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 9,
+     "v": 10
+    }
+   ]
+  },
+  {
+   "supersite_a": 40,
+   "supersite_b": 48,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 72,
+     "v": 88
+    }
+   ]
+  },
+  {
+   "supersite_a": 40,
+   "supersite_b": 49,
+   "chain_distance": 9,
+   "couplings": [
+    {
+     "u": 56,
+     "v": 72
+    }
+   ]
+  },
+  {
+   "supersite_a": 40,
+   "supersite_b": 50,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 10,
+     "v": 11
+    }
+   ]
+  },
+  {
+   "supersite_a": 41,
+   "supersite_b": 42,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 57,
+     "v": 58
+    }
+   ]
+  },
+  {
+   "supersite_a": 41,
+   "supersite_b": 43,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 85,
+     "v": 86
+    }
+   ]
+  },
+  {
+   "supersite_a": 41,
+   "supersite_b": 46,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 71,
+     "v": 85
+    }
+   ]
+  },
+  {
+   "supersite_a": 41,
+   "supersite_b": 51,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 85,
+     "v": 87
+    }
+   ]
+  },
+  {
+   "supersite_a": 42,
+   "supersite_b": 50,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 11,
+     "v": 27
+    },
+    {
+     "u": 55,
+     "v": 57
+    }
+   ]
+  },
+  {
+   "supersite_a": 42,
+   "supersite_b": 52,
+   "chain_distance": 10,
+   "couplings": [
+    {
+     "u": 25,
+     "v": 27
+    },
+    {
+     "u": 41,
+     "v": 57
+    }
+   ]
+  },
+  {
+   "supersite_a": 43,
+   "supersite_b": 45,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 86,
+     "v": 102
+    }
+   ]
+  },
+  {
+   "supersite_a": 43,
+   "supersite_b": 50,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 9,
+     "v": 11
+    }
+   ]
+  },
+  {
+   "supersite_a": 44,
+   "supersite_b": 45,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 102,
+     "v": 103
+    }
+   ]
+  },
+  {
+   "supersite_a": 44,
+   "supersite_b": 48,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 88,
+     "v": 89
+    }
+   ]
+  },
+  {
+   "supersite_a": 44,
+   "supersite_b": 51,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 87,
+     "v": 89
+    }
+   ]
+  },
+  {
+   "supersite_a": 45,
+   "supersite_b": 51,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 26,
+     "v": 42
+    }
+   ]
+  },
+  {
+   "supersite_a": 45,
+   "supersite_b": 53,
+   "chain_distance": 8,
+   "couplings": [
+    {
+     "u": 40,
+     "v": 42
+    }
+   ]
+  },
+  {
+   "supersite_a": 46,
+   "supersite_b": 47,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 38,
+     "v": 70
+    }
+   ]
+  },
+  {
+   "supersite_a": 46,
+   "supersite_b": 51,
+   "chain_distance": 5,
+   "couplings": [
+    {
+     "u": 71,
+     "v": 87
+    }
+   ]
+  },
+  {
+   "supersite_a": 46,
+   "supersite_b": 53,
+   "chain_distance": 7,
+   "couplings": [
+    {
+     "u": 54,
+     "v": 70
+    }
+   ]
+  },
+  {
+   "supersite_a": 47,
+   "supersite_b": 49,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 37,
+     "v": 39
+    }
+   ]
+  },
+  {
+   "supersite_a": 47,
+   "supersite_b": 53,
+   "chain_distance": 6,
+   "couplings": [
+    {
+     "u": 38,
+     "v": 54
+    }
+   ]
+  },
+  {
+   "supersite_a": 48,
+   "supersite_b": 49,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 56,
+     "v": 88
+    }
+   ]
+  },
+  {
+   "supersite_a": 48,
+   "supersite_b": 51,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 24,
+     "v": 26
+    },
+    {
+     "u": 87,
+     "v": 88
+    }
+   ]
+  },
+  {
+   "supersite_a": 48,
+   "supersite_b": 52,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 24,
+     "v": 25
+    }
+   ]
+  },
+  {
+   "supersite_a": 49,
+   "supersite_b": 50,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 55,
+     "v": 56
+    }
+   ]
+  },
+  {
+   "supersite_a": 49,
+   "supersite_b": 52,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 39,
+     "v": 41
+    }
+   ]
+  },
+  {
+   "supersite_a": 49,
+   "supersite_b": 53,
+   "chain_distance": 4,
+   "couplings": [
+    {
+     "u": 39,
+     "v": 40
+    },
+    {
+     "u": 54,
+     "v": 56
+    }
+   ]
+  },
+  {
+   "supersite_a": 50,
+   "supersite_b": 52,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 11,
+     "v": 25
+    },
+    {
+     "u": 41,
+     "v": 55
+    }
+   ]
+  },
+  {
+   "supersite_a": 50,
+   "supersite_b": 53,
+   "chain_distance": 3,
+   "couplings": [
+    {
+     "u": 54,
+     "v": 55
+    }
+   ]
+  },
+  {
+   "supersite_a": 51,
+   "supersite_b": 52,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 25,
+     "v": 26
+    }
+   ]
+  },
+  {
+   "supersite_a": 51,
+   "supersite_b": 53,
+   "chain_distance": 2,
+   "couplings": [
+    {
+     "u": 26,
+     "v": 40
+    }
+   ]
+  },
+  {
+   "supersite_a": 52,
+   "supersite_b": 53,
+   "chain_distance": 1,
+   "couplings": [
+    {
+     "u": 40,
+     "v": 41
+    }
+   ]
+  }
+ ]
+}
