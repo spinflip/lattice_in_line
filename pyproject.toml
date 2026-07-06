@@ -34,3 +34,7 @@ vmps_geometry = [
     "unit_cell/*.py",
     "*.sh",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
