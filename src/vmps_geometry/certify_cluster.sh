@@ -17,6 +17,9 @@
 #   STALL         stop heuristic after this many secs without
 #                 improvement; 0 = auto = max(60, TIME_HEUR/10)  (0)
 #   SYMMETRY      navigation symmetry: orbit|reversal  (orbit)
+#   ORBITS        use pynauty orbit symmetry: 1|0|auto. auto probes pynauty and
+#                 falls back to reversal if it is missing or CPU-incompatible
+#                 (a broken pynauty SIGILLs); 0 forces reversal, 1 forces orbit (auto)
 #   FINAL_SYM     symmetry in the final CNF            (reversal)
 #   MAX_ROUNDS    navigation rounds before giving up   (50)
 #   SAT_TIME      cap (secs) for the final SAT cross-check (3600);
@@ -72,6 +75,25 @@ SAT_TIME="${SAT_TIME:-${KISSAT_TIME:-3600}}"
 POLISH_TIME="${POLISH_TIME:-1800}"
 
 C() { "$PYTHON" "$CERT" "$@" --cluster "$CLUSTER" --state-dir "$STATE_DIR"; }
+
+# Orbit symmetry (a factor-n reduction for vertex-transitive graphs) needs a
+# WORKING pynauty. A pynauty built for another CPU SIGILLs ("Illegal
+# instruction"), which would crash phase 1 (info --orbits). Probe it in a
+# subprocess so a broken/missing pynauty degrades to reversal symmetry instead
+# of taking down the whole campaign. Override with ORBITS=1 (force) or ORBITS=0
+# (skip); ORBITS=auto (default) tests it.
+ORBITS="${ORBITS:-auto}"
+if [[ "$ORBITS" == "auto" ]]; then
+  if "$PYTHON" -c 'import pynauty; pynauty.autgrp(pynauty.Graph(3))' >/dev/null 2>&1; then
+    ORBITS=1
+  else
+    ORBITS=0
+  fi
+fi
+if [[ "$ORBITS" -ne 1 && "$SYMMETRY" == "orbit" ]]; then
+  echo "[certify] pynauty unavailable or broken; using reversal symmetry instead of orbit" >&2
+  SYMMETRY="reversal"
+fi
 
 if [[ "$MODE" == "ss" ]]; then
   STATE_JSON="$STATE_DIR/${CLUSTER}__ss${BLOCK}.json"
@@ -180,7 +202,11 @@ fi
 
 # ---------------------------------------------------------------- phase 1
 log "phase 1: structural bounds"
-C info --orbits
+if [[ "$ORBITS" -eq 1 ]]; then
+  C info --orbits
+else
+  C info
+fi
 
 # ---------------------------------------------------------------- phase 2
 log "phase 2: heuristic upper bound (${TIME_HEUR}s, ${PROCS} procs, seed ${SEED})"

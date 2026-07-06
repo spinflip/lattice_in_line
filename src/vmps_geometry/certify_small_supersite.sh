@@ -34,9 +34,11 @@ else
   CLUSTERS=("${DEFAULT_CLUSTERS[@]}")
 fi
 
-mkdir -p ../../vmps_geometry_data
+DATA_DIR="$HOME/vmps_geometry_data"
+mkdir -p "$DATA_DIR"
 
 nohup bash -c '
+  DATA_DIR="$HOME/vmps_geometry_data"
   BLOCK="$1"; shift
 
   parse_cluster() {
@@ -77,7 +79,7 @@ PY
     TILTED="$TILTED" \
     MODE=ss \
     BLOCK="$BLOCK" \
-    STATE_DIR="../../vmps_geometry_data/bw_run_ss_${c}_block${BLOCK}" \
+    STATE_DIR="$DATA_DIR/bw_run_ss_${c}_block${BLOCK}" \
     TIME_HEUR=3600 \
     STALL=600 \
     TIME_OPT=3600 \
@@ -89,6 +91,6 @@ PY
     JOBS_PER_SIDE=2 \
     SEED=1 \
       ./certify_cluster.sh "$c" \
-      > "../../vmps_geometry_data/certify_ss_${c}_block${BLOCK}.log" 2>&1
+      > "$DATA_DIR/certify_ss_${c}_block${BLOCK}.log" 2>&1
   done
-' bash "$BLOCK" "${CLUSTERS[@]}" >> ../../vmps_geometry_data/certify_small_supersite.log 2>&1 &
+' bash "$BLOCK" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small_supersite.log" 2>&1 &

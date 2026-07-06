@@ -17,10 +17,14 @@ else
   CLUSTERS=("${DEFAULT_CLUSTERS[@]}")
 fi
 
+DATA_DIR="$HOME/vmps_geometry_data"
+mkdir -p "$DATA_DIR"
+
 nohup bash -c '
+  DATA_DIR="$HOME/vmps_geometry_data"
   for c in "$@"; do
     echo "=== $c ==="
-    STATE_DIR="../../vmps_geometry_data/bw_run_$c" \
+    STATE_DIR="$DATA_DIR/bw_run_$c" \
     TIME_HEUR=3600 \
     STALL=300 \
     TIME_OPT=3600 \
@@ -30,6 +34,6 @@ nohup bash -c '
     PROCS=160 \
     JOBS_PER_SIDE=2 \
     SEED=1 \
-      ./certify_cluster.sh "$c" >> "../../vmps_geometry_data/certify_$c.log" 2>&1
+      ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_$c.log" 2>&1
   done
-' bash "${CLUSTERS[@]}" >> ../../vmps_geometry_data/certify_small.log 2>&1 &
+' bash "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
