@@ -22,7 +22,7 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.11 fallback.
     tomllib = None
 
-import torch
+import numpy as np
 
 from .cluster_edges import CLUSTER_EDGES
 from .graph_ordering import GRAPH_ORDERING_CHOICES, graph_ordering_permutation
@@ -135,7 +135,7 @@ def _resolve_ordering_permutation(
     key: str,
 ) -> Tuple[List[int], str]:
     ordering_text = str(ordering).strip()
-    ordering_path = Path(ordering_text).expanduser()
+    ordering_path = resolve_geometry_path(ordering_text)
     if ordering_path.is_file():
         try:
             return (
@@ -214,15 +214,11 @@ def cluster_coupling_matrix(
     coupling: float = 1.0,
     *,
     ordering: str = "rcm",
-    device=None,
-    dtype=torch.float64,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Return the upper-triangular J_ij matrix for a supported cluster."""
-    if device is None:
-        device = torch.device("cpu")
     L, edges = _ordered_cluster_edges(name, ordering=ordering, verbose=True)
 
-    out = torch.zeros((L, L), dtype=dtype, device=device)
+    out = np.zeros((L, L), dtype=np.float64)
     for i, j in edges:
         out[i, j] = coupling
     return out
@@ -590,14 +586,10 @@ def cluster_file_coupling_matrix(
     path,
     *,
     ordering: str = "rcm",
-    device=None,
-    dtype=torch.float64,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Return an upper-triangular J_ij matrix from a user-supplied cluster file."""
-    if device is None:
-        device = torch.device("cpu")
     L, weighted_edges = _ordered_cluster_file_edges(path, ordering=ordering, verbose=True)
-    out = torch.zeros((L, L), dtype=dtype, device=device)
+    out = np.zeros((L, L), dtype=np.float64)
     for i, j, coupling in weighted_edges:
         out[i, j] = coupling
     return out
@@ -789,13 +781,9 @@ def unit_cell_file_hopping_matrix_and_sublattice(
     *,
     boundary: str = "open",
     ordering: str = "rcm",
-    device=None,
-    dtype=torch.float64,
     params: Mapping[str, object] | None = None,
-) -> Tuple[torch.Tensor, List[int]]:
+) -> Tuple[np.ndarray, List[int]]:
     """Return ordered upper-triangular hopping matrix and ordered bipartition."""
-    if device is None:
-        device = torch.device("cpu")
     L, weighted_edges = load_unit_cell_file_edges(path, L, boundary=boundary, params=params)
     edges = [(i, j) for i, j, _ in weighted_edges]
     sublattice = infer_bipartite_sublattice(L, edges)
@@ -814,7 +802,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
         relabeled.append((ii, jj, hopping))
     relabeled.sort(key=lambda item: (item[0], item[1], item[2]))
 
-    out = torch.zeros((L, L), dtype=dtype, device=device)
+    out = np.zeros((L, L), dtype=np.float64)
     for i, j, hopping in relabeled:
         out[i, j] = hopping
 
@@ -895,14 +883,10 @@ def unit_cell_file_coupling_matrix(
     *,
     boundary: str = "open",
     ordering: str = "rcm",
-    device=None,
-    dtype=torch.float64,
     params: Mapping[str, object] | None = None,
     ordering_params: Mapping[str, object] | None = None,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Return an ordered upper-triangular J_ij matrix from a repeated unit-cell file."""
-    if device is None:
-        device = torch.device("cpu")
     L, weighted_edges = _ordered_unit_cell_file_edges(
         path,
         L,
@@ -912,7 +896,7 @@ def unit_cell_file_coupling_matrix(
         params=params,
         ordering_params=ordering_params,
     )
-    out = torch.zeros((L, L), dtype=dtype, device=device)
+    out = np.zeros((L, L), dtype=np.float64)
     for i, j, coupling in weighted_edges:
         out[i, j] = coupling
     return out
