@@ -1198,12 +1198,19 @@ def load_edge_file_indexed(path, n):
 
 def load_j2(args, n):
     if getattr(args, "j2_cluster", None):
-        spec = importlib.util.spec_from_file_location("ce2", args.edges_module)
+        # J2 table defaults to a sibling cluster_edges_NNN.py (next to the J1
+        # --edges-module), or an explicit --j2-edges-module, or the J1 module.
+        j2_module = getattr(args, "j2_edges_module", None)
+        if not j2_module:
+            sibling = os.path.join(os.path.dirname(args.edges_module) or ".",
+                                   "cluster_edges_NNN.py")
+            j2_module = sibling if os.path.exists(sibling) else args.edges_module
+        spec = importlib.util.spec_from_file_location("ce2", j2_module)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         tab = getattr(mod, "CLUSTER_EDGES")
         if args.j2_cluster not in tab:
-            sys.exit(f"J2 cluster '{args.j2_cluster}' not found")
+            sys.exit(f"J2 cluster '{args.j2_cluster}' not found in {j2_module}")
         edges = sorted({(min(u, v), max(u, v))
                         for u, v in tab[args.j2_cluster] if u != v})
         if max(max(e) for e in edges) >= n:
@@ -1218,16 +1225,25 @@ def load_j2(args, n):
 def lex_setup(args):
     n, e1 = get_graph(args)
     e2, j2n = load_j2(args, n)
-    st2 = State(args.state_dir, f"{args.cluster}__lex_{j2n}", n, e2)
-    # resolve k1
+    # resolve k1 FIRST: explicit --k1, else the J1 state's bandwidth. We use the
+    # best-known upper bound (a labeling achieving it exists, so the cap is
+    # feasible) even when J1 is not yet certified — just warn in that case.
     k1 = args.k1
     if k1 is None:
         st1 = State(args.state_dir, args.cluster, n, e1).read()
         lb1, ub1 = State.window(st1)
-        if ub1 is None or lb1 < ub1:
-            sys.exit("stage 1 (J1 bandwidth) is not certified yet; run the "
-                     "normal campaign first, or pass an explicit --k1 cap")
+        if ub1 is None:
+            sys.exit("stage 1 (J1 bandwidth) has no result yet; run the normal "
+                     "campaign on the J1 cluster first, or pass an explicit --k1 cap")
+        if lb1 < ub1:
+            print(f"[lex] WARNING: J1 bandwidth is not certified (window "
+                  f"[{lb1}, {ub1}]); using the best-known upper bound k1={ub1} "
+                  f"as the J1 cap")
         k1 = ub1
+    # The J2 (k2) certification — the best labeling AND the proven-infeasible k2
+    # values — is only valid for THIS J1 cap k1. Key the state file by k1 so
+    # different caps (e.g. different SOFTEN) are independent and never mix.
+    st2 = State(args.state_dir, f"{args.cluster}__lex_{j2n}__k1_{k1}", n, e2)
     return n, e1, e2, k1, st2
 
 
@@ -1276,6 +1292,63 @@ def sa_lex(n, e1, k1, e2, init, seed, t_budget):
                 lab[a], lab[b] = lab[b], lab[a]
         T = max(0.05, T * 0.95)
     return bm, best
+
+
+def _sa_lex_worker(payload):
+    """One independent lex SA chain (picklable for mp.Pool)."""
+    n, e1, k1, e2, seed, t_budget, init = payload
+    return sa_lex(n, e1, k1, e2, init, seed, t_budget)
+
+
+def run_lex_heuristic(n, e1, k1, e2, init, total_time, procs, seed):
+    """Parallel multi-start SA for the lex (J1-capped) problem: minimize the J2
+    bandwidth over labelings with J1 bandwidth <= k1. Half the chains warm-start
+    from the running best, half from the supplied (J1-feasible) init. Returns
+    (best_j2_bandwidth, best_labeling)."""
+    best_lab = init[:]
+    best_bw = max(abs(init[u] - init[v]) for u, v in e2) if e2 else 0
+    print(f"[lex-heuristic] start J2 bandwidth: {best_bw} "
+          f"(procs={procs}, time={total_time:.0f}s)")
+    if total_time <= 0 or procs <= 1:
+        bw, lab = sa_lex(n, e1, k1, e2, best_lab, seed, total_time)
+        return (bw, lab) if bw < best_bw else (best_bw, best_lab)
+    t_end = time.time() + total_time
+    batch = max(15.0, total_time / 8)
+    r = 0
+    with mp.Pool(procs) as pool:
+        while time.time() < t_end:
+            dur = min(batch, t_end - time.time())
+            if dur <= 1:
+                break
+            jobs = [(n, e1, k1, e2, seed + r * procs + p, dur,
+                     best_lab if p % 2 == 0 else init) for p in range(procs)]
+            r += 1
+            for bw, lab in pool.imap_unordered(_sa_lex_worker, jobs):
+                if bw < best_bw:
+                    best_bw, best_lab = bw, lab
+                    print(f"[lex-heuristic] new J2 bandwidth: {best_bw}")
+    return best_bw, best_lab
+
+
+def cmd_lex_heuristic(args):
+    n, e1, e2, k1, st2 = lex_setup(args)
+    print(f"[lex] heuristic with hard J1 cap k1={k1}; J2 has {len(e2)} edges")
+    st2.record_math_lb(combinatorial_lb(n, e2))
+    cur = st2.read()
+    # start from the current lex best if J1-feasible, else the J1 ordering,
+    # else a CP-SAT feasible labeling under the J1 cap.
+    init = cur["best_labeling"]
+    if init is None or any(abs(init[u] - init[v]) > k1 for u, v in e1):
+        init = State(args.state_dir, args.cluster, n, e1).read()["best_labeling"]
+    if init is None or any(abs(init[u] - init[v]) > k1 for u, v in e1):
+        res, init, _ = cpsat_decide_caps(
+            n, e1, [k1] * len(e1), min(600, args.time), args.workers,
+            symmetry=args.symmetry, fix_label1=args.fix_label1)
+        if res != "SAT":
+            sys.exit(f"could not find any labeling with J1 bandwidth <= {k1}")
+    bm, lab = run_lex_heuristic(n, e1, k1, e2, init, args.time, args.procs, args.seed)
+    st2.record_labeling(lab, "lex-heuristic")
+    print_status(st2.read(), e2)
 
 
 def cmd_lex_ladder(args):
@@ -3041,8 +3114,19 @@ def main():
         common(p, needs_k=needs_k)
         p.add_argument("--j2-cluster", default=None)
         p.add_argument("--j2-file", default=None)
+        p.add_argument("--j2-edges-module", default=None,
+                       help="module with the J2 CLUSTER_EDGES table for "
+                            "--j2-cluster (default: a sibling cluster_edges_NNN.py "
+                            "next to --edges-module, else --edges-module itself)")
         p.add_argument("--k1", type=int, default=None,
                        help="J1 cap (default: certified k1* from the cluster state)")
+
+    p = sub.add_parser("lex-heuristic"); lexcommon(p)
+    p.add_argument("--time", type=float, default=600)
+    p.add_argument("--procs", type=int, default=os.cpu_count())
+    p.add_argument("--workers", type=int, default=os.cpu_count())
+    p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(fn=cmd_lex_heuristic)
 
     p = sub.add_parser("lex-ladder"); lexcommon(p)
     p.add_argument("--time-per-k", type=float, default=3600)
