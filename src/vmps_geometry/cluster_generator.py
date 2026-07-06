@@ -17,6 +17,7 @@ import ast
 import argparse
 import importlib.util
 import json
+import sys
 from math import atan2, cos, degrees, pi, sin, sqrt
 from collections import deque
 from dataclasses import dataclass
@@ -24,13 +25,29 @@ from pathlib import Path
 from fractions import Fraction
 from typing import Dict, List, Sequence, Tuple
 
-from .cluster_graphs import resolve_geometry_path
-
 
 Vec3 = Tuple[float, float, float]
 IVec3 = Tuple[int, int, int]
 Bond = Tuple[int, int, IVec3]
 Edge = Tuple[int, int]
+
+
+def resolve_geometry_path(path) -> Path:
+    """Resolve plain paths plus legacy ``geometry/...`` paths into this package.
+
+    Inlined (mirrors ``cluster_graphs.resolve_geometry_path``) so this module
+    stays runnable as a plain script and free of the heavier ``cluster_graphs``
+    import chain (which pulls in torch)."""
+    raw = Path(path).expanduser()
+    if raw.is_file():
+        return raw
+    parts = raw.parts
+    if "geometry" in parts:
+        idx = parts.index("geometry")
+        candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
+        if candidate.is_file():
+            return candidate
+    return raw
 
 
 @dataclass(frozen=True)
@@ -966,6 +983,47 @@ def build_edge_plot_segments(coords: Sequence[Vec3], edges: Sequence[Edge]) -> L
     ]
 
 
+def min_image_end(p: Vec3, q: Vec3, periods: "Periods") -> Tuple[Vec3, IVec3]:
+    """Nearest periodic image of ``q`` relative to ``p`` and its integer wrap.
+    Companion to :func:`min_image_dist2`, used to draw wrapped bonds."""
+    px, py, pz = periods
+    rx = (-1, 0, 1) if px is not None else (0,)
+    ry = (-1, 0, 1) if py is not None else (0,)
+    rz = (-1, 0, 1) if pz is not None else (0,)
+    best_end = q
+    best_wrap: IVec3 = (0, 0, 0)
+    best_d2 = dist2(p, q)
+    for mx in rx:
+        for my in ry:
+            for mz in rz:
+                s = q
+                if px is not None and mx:
+                    s = _add_vec(s, _scale_vec(px, float(mx)))
+                if py is not None and my:
+                    s = _add_vec(s, _scale_vec(py, float(my)))
+                if pz is not None and mz:
+                    s = _add_vec(s, _scale_vec(pz, float(mz)))
+                d = dist2(p, s)
+                if d < best_d2 - 1.0e-12:
+                    best_d2 = d
+                    best_end = s
+                    best_wrap = (mx, my, mz)
+    return best_end, best_wrap
+
+
+def build_periodic_plot_segments(
+    coords: Sequence[Vec3], edges: Sequence[Edge], periods: "Periods"
+) -> List[PlotSegment]:
+    """Plot segments for an arbitrary edge list, drawing each bond to the
+    nearest periodic image of its endpoint (so higher neighbour shells render
+    with correct wrapping). Used for neighbour shells > 1."""
+    segments: List[PlotSegment] = []
+    for i, j in edges:
+        end, wrap = min_image_end(coords[i], coords[j], periods)
+        segments.append(PlotSegment(start=coords[i], end=end, wrap=wrap, sites=(i, j)))
+    return segments
+
+
 def nearest_periodic_delta(
     start: Vec3,
     end: Vec3,
@@ -1142,6 +1200,41 @@ TRIANGULAR_BTORUS = Lattice(
 )
 
 
+SQUARE_BASIS: Tuple[Vec3, ...] = ((0.0, 0.0, 0.0),)
+SQUARE_BRAVAIS: Tuple[Vec3, Vec3, Vec3] = (
+    (1.0, 0.0, 0.0),
+    (0.0, 1.0, 0.0),
+    (0.0, 0.0, 1.0),
+)
+SQUARE_BONDS: Tuple[Bond, ...] = (
+    (0, 0, (1, 0, 0)),
+    (0, 0, (0, 1, 0)),
+)
+
+# Plain square lattice as a cylinder (periodic y / circumference, open x) and a
+# torus (periodic in both directions). Both are two-dimensional: use --Nz 1.
+SQUARE_VARIANTS: Dict[str, Lattice] = {
+    "squareCyl": Lattice(
+        name="squareCyl",
+        n_basis=1,
+        bravais=SQUARE_BRAVAIS,
+        basis=SQUARE_BASIS,
+        bonds=SQUARE_BONDS,
+        pbc=(False, True, False),
+        enforce_regular_degree=False,
+    ),
+    "squareTorus": Lattice(
+        name="squareTorus",
+        n_basis=1,
+        bravais=SQUARE_BRAVAIS,
+        basis=SQUARE_BASIS,
+        bonds=SQUARE_BONDS,
+        pbc=(True, True, False),
+        enforce_regular_degree=True,
+    ),
+}
+
+
 PYROCHLORE_TILTED_SUPERCELLS: Dict[str, Tuple[IVec3, IVec3, IVec3]] = {
     "48a": ((-2, 0, 0), (-1, 1, 2), (0, -2, 2)),
     "48b": ((-1, 1, 2), (-2, 1, -1), (-2, -1, 1)),
@@ -1164,6 +1257,8 @@ def get_lattice(name: str, trillium_u: float) -> Lattice:
         return KAGOME_VARIANTS[name]
     if name == "triangularBtorus" or name in TRIANGULAR_STRIP_VARIANTS:
         return TRIANGULAR_BTORUS
+    if name in SQUARE_VARIANTS:
+        return SQUARE_VARIANTS[name]
     if name == "hyperkagome":
         return HYPERKAGOME
     if name == "pyrochlore":
@@ -1255,6 +1350,171 @@ def validate_graph(lattice: Lattice, coords: List[Vec3], edges: List[Edge]) -> N
             f"Unexpected number of connected components: got {n_components}, "
             f"expected {lattice.expected_components}."
         )
+
+
+# ----------------------------------------------------------------------
+# real-space neighbour shells beyond nearest neighbour (NNN and further)
+# ----------------------------------------------------------------------
+
+Periods = Tuple["Vec3 | None", "Vec3 | None", "Vec3 | None"]
+
+
+def min_image_dist2(p: Vec3, q: Vec3, periods: Periods) -> float:
+    """Minimum-image squared distance between ``p`` and ``q`` under up to three
+    periodic directions. A ``None`` entry in ``periods`` means that axis is open
+    (no wrapping). Generalizes :func:`nearest_periodic_delta` to three dims."""
+    px, py, pz = periods
+    rx = (-1, 0, 1) if px is not None else (0,)
+    ry = (-1, 0, 1) if py is not None else (0,)
+    rz = (-1, 0, 1) if pz is not None else (0,)
+    best = dist2(p, q)
+    for mx in rx:
+        for my in ry:
+            for mz in rz:
+                if mx == 0 and my == 0 and mz == 0:
+                    continue
+                s = q
+                if px is not None and mx:
+                    s = _add_vec(s, _scale_vec(px, float(mx)))
+                if py is not None and my:
+                    s = _add_vec(s, _scale_vec(py, float(my)))
+                if pz is not None and mz:
+                    s = _add_vec(s, _scale_vec(pz, float(mz)))
+                d = dist2(p, s)
+                if d < best:
+                    best = d
+    return best
+
+
+def diagonal_periods(
+    lattice: "Lattice", Nx: int, Ny: int, Nz: int, a: float
+) -> Periods:
+    """Real-space period vectors of a diagonal ``Nx x Ny x Nz`` cluster, with
+    ``None`` on non-periodic axes (per ``lattice.pbc``). Mirrors the geometry of
+    :meth:`Lattice.make_diagonal` (period along axis i is ``Ni * a * bravais[i]``)."""
+    counts = (Nx, Ny, Nz)
+    periods: List["Vec3 | None"] = []
+    for axis in range(3):
+        if lattice.pbc[axis]:
+            periods.append(_scale_vec(lattice.bravais[axis], a * counts[axis]))
+        else:
+            periods.append(None)
+    return (periods[0], periods[1], periods[2])
+
+
+def supercell_periods(
+    vectors: Sequence[IVec3], bravais: Tuple[Vec3, Vec3, Vec3], a: float
+) -> Periods:
+    """Real-space period vectors of a :meth:`Lattice.make_supercell` cluster:
+    each supercell vector is an integer combination of Bravais vectors, scaled
+    by ``a``; all three axes are periodic."""
+    out: List["Vec3 | None"] = []
+    for v in vectors:
+        acc: Vec3 = (0.0, 0.0, 0.0)
+        for k in range(3):
+            acc = _add_vec(acc, _scale_vec(bravais[k], float(v[k])))
+        out.append(_scale_vec(acc, a))
+    return (out[0], out[1], out[2])
+
+
+def neighbor_shell_edges(
+    coords: Sequence[Vec3],
+    periods: Periods,
+    shell: int,
+    tol: float = 1.0e-6,
+) -> Tuple[List[Edge], List[float]]:
+    """Edges of the ``shell``-th real-space neighbour shell.
+
+    For each site, the distinct minimum-image distances to all other sites are
+    found; the site's ``shell``-th distinct distance defines its neighbours in
+    that shell. An unordered pair ``{i, j}`` is a shell edge iff their distance
+    matches the ``shell``-th distinct distance of ``i`` OR of ``j`` (union;
+    reduces to the global shell for homogeneous clusters, and stays faithful
+    near open boundaries where sites are inequivalent).
+
+    Returns ``(sorted edges, sorted distinct shell distances realized)``.
+    """
+    if shell < 1:
+        raise ValueError("shell must be a positive integer (1 = nearest neighbour).")
+    n = len(coords)
+    d2 = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        ci = coords[i]
+        for j in range(i + 1, n):
+            v = min_image_dist2(ci, coords[j], periods)
+            d2[i][j] = v
+            d2[j][i] = v
+
+    shell_d2: List["float | None"] = [None] * n
+    for i in range(n):
+        distinct: List[float] = []
+        for j in sorted(range(n), key=lambda jj: d2[i][jj]):
+            if j == i:
+                continue
+            v = d2[i][j]
+            if not distinct or v - distinct[-1] > tol:
+                distinct.append(v)
+            if len(distinct) >= shell:
+                break
+        if len(distinct) >= shell:
+            shell_d2[i] = distinct[shell - 1]
+
+    edges: set[Edge] = set()
+    for i in range(n):
+        target = shell_d2[i]
+        if target is None:
+            continue
+        for j in range(n):
+            if j != i and abs(d2[i][j] - target) <= tol:
+                edges.add((min(i, j), max(i, j)))
+
+    realized = sorted({round(v, 9) for v in shell_d2 if v is not None})
+    return sorted(edges), [sqrt(r) for r in realized]
+
+
+def validate_neighbor_shell_graph(n_sites: int, edges: Sequence[Edge]) -> Dict[str, float]:
+    """Relaxed validation for higher neighbour shells (shell > 1).
+
+    Rejects duplicate, self, and out-of-range edges (all signal a too-small PBC
+    cluster), but does NOT assert the nearest-neighbour regular degree or
+    component count, which generally do not hold for higher shells. Returns a
+    stats dict and warns (to stderr) on irregular degree."""
+    if len(set(edges)) != len(edges):
+        raise RuntimeError("Duplicate edges found in neighbour-shell graph.")
+    degree = [0] * n_sites
+    for i, j in edges:
+        if i == j:
+            raise RuntimeError(
+                f"Self-edge found: {(i, j)}. The cluster is too small for a "
+                "simple-graph representation of this neighbour shell; "
+                "increase --Nx/--Ny/--Nz."
+            )
+        if not (0 <= i < n_sites and 0 <= j < n_sites):
+            raise RuntimeError(f"Edge out of range: {(i, j)}")
+        degree[i] += 1
+        degree[j] += 1
+    dmin, dmax = (min(degree), max(degree)) if degree else (0, 0)
+    if dmin != dmax:
+        print(
+            f"# warning: irregular neighbour-shell degree (min={dmin}, max={dmax}); "
+            "expected near open boundaries, but can also indicate a too-small cluster",
+            file=sys.stderr,
+        )
+    return {
+        "n_components": float(count_components(n_sites, edges)),
+        "degree_min": float(dmin),
+        "degree_max": float(dmax),
+        "degree_mean": (2.0 * len(edges) / n_sites) if n_sites else 0.0,
+    }
+
+
+def print_edge_list(edges: Sequence[Edge], header_lines: Sequence[str] = ()) -> None:
+    """Whitespace ``u v`` edge list (0-indexed), directly consumable as a
+    bandwidth-certifier ``--j2-file``. Header lines are emitted as ``#`` comments."""
+    for line in header_lines:
+        print(f"# {line}")
+    for i, j in edges:
+        print(f"{i} {j}")
 
 
 def validate_supercell(
@@ -1471,8 +1731,12 @@ def plot_lattice(
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
+    # Generated plots go into a "plots" subfolder of the working directory.
+    # Absolute stems (or stems that already name a directory) are left as-is.
     output_path = Path(output_stem)
-    if not output_path.is_absolute():
+    if not output_path.is_absolute() and output_path.parent == Path("."):
+        output_path = Path.cwd() / "plots" / output_path
+    elif not output_path.is_absolute():
         output_path = Path.cwd() / output_path
 
     png_path = output_path.with_suffix(".png")
@@ -1920,6 +2184,11 @@ def automatic_plot_stem(
     return f"{cluster_name}{n_sites}"
 
 
+def shell_plot_stem(stem: str, shell: int) -> str:
+    """Append a ``_shell<N>`` suffix to a plot stem for neighbour shells > 1."""
+    return stem if shell == 1 else f"{stem}_shell{shell}"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Print Cartesian coordinates and edge lists for finite periodic clusters."
@@ -1944,6 +2213,8 @@ def parse_args() -> argparse.Namespace:
             "triangularBtorus",
             "triangularYtorus",
             "triangularXtorus",
+            "squareCyl",
+            "squareTorus",
         ],
         help="Lattice type.",
     )
@@ -2003,9 +2274,26 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--format",
-        choices=["python", "json"],
+        choices=["python", "json", "edgelist"],
         default="python",
-        help="Output format.",
+        help=(
+            "Output format. 'edgelist' prints a whitespace 'u v' 0-indexed edge "
+            "list (a bandwidth-certifier --j2-file)."
+        ),
+    )
+
+    parser.add_argument(
+        "--neighbor-shell",
+        "--shell",
+        dest="neighbor_shell",
+        type=int,
+        default=1,
+        help=(
+            "Which real-space neighbour shell to emit as edges: 1 = nearest "
+            "neighbour (default), 2 = next-nearest (NNN), etc. Coordinates are "
+            "unchanged, so shell 1 and shell 2 of the same cluster share site "
+            "indexing and are usable as J1 and J2."
+        ),
     )
 
     parser.add_argument(
@@ -2047,9 +2335,63 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def resolve_output_edges(args, coords, periods, nn_edges):
+    """Return ``(edges_to_emit, shell_meta)``. For ``--neighbor-shell 1`` this is
+    the nearest-neighbour edges unchanged (``shell_meta`` is None). For higher
+    shells it computes the real-space shell graph from ``coords``/``periods`` and
+    (unless ``--no-validate``) runs the relaxed shell validator."""
+    if args.neighbor_shell == 1:
+        return nn_edges, None
+    edges, shell_distances = neighbor_shell_edges(coords, periods, args.neighbor_shell)
+    stats = None
+    if not args.no_validate:
+        stats = validate_neighbor_shell_graph(len(coords), edges)
+    return edges, {
+        "shell": args.neighbor_shell,
+        "distances": shell_distances,
+        "stats": stats,
+    }
+
+
+def shell_header_lines(shell_meta) -> List[str]:
+    """Comment lines describing a higher neighbour shell (empty for shell 1)."""
+    if shell_meta is None:
+        return []
+    dists = ", ".join(f"{d:.12g}" for d in shell_meta["distances"])
+    lines = [
+        f"neighbor_shell = {shell_meta['shell']}",
+        f"shell_distances = [{dists}]",
+    ]
+    stats = shell_meta.get("stats")
+    if stats is not None:
+        lines.append(
+            "shell_degree min/max/mean = "
+            f"{int(stats['degree_min'])}/{int(stats['degree_max'])}/"
+            f"{stats['degree_mean']:.6g}"
+        )
+        lines.append(f"shell_n_components = {int(stats['n_components'])}")
+    return lines
+
+
+def shell_json_fields(shell_meta) -> Dict:
+    """JSON payload fields describing a higher neighbour shell (empty for shell 1)."""
+    if shell_meta is None:
+        return {}
+    out: Dict = {
+        "neighbor_shell": shell_meta["shell"],
+        "shell_distances": shell_meta["distances"],
+    }
+    if shell_meta.get("stats") is not None:
+        out["shell_stats"] = shell_meta["stats"]
+    return out
+
+
 def main() -> None:
     args = parse_args()
     lattice = get_lattice(args.lattice, args.trillium_u)
+
+    if args.neighbor_shell < 1:
+        raise ValueError("--neighbor-shell must be a positive integer (1 = nearest neighbour).")
 
     if args.edges_per_line <= 0:
         raise ValueError("--edges-per-line must be positive.")
@@ -2091,11 +2433,21 @@ def main() -> None:
                     coords, edges, period_x, period_y, periodic_x, args.a
                 )
 
-        plot_segments = build_strip_plot_segments(coords, edges, period_x, period_y, periodic_x)
+        pbc = (periodic_x, True, False)
+        periods = (period_x if periodic_x else None, period_y, None)
+        out_edges, shell_meta = resolve_output_edges(args, coords, periods, edges)
+
+        if args.neighbor_shell == 1:
+            plot_segments = build_strip_plot_segments(coords, edges, period_x, period_y, periodic_x)
+        else:
+            plot_segments = build_periodic_plot_segments(coords, out_edges, periods)
         plot_coords, plot_segments, plot_rotation = align_strip_plot_axis(
             coords, plot_segments, period_x
         )
-        plot_stem = automatic_plot_stem(args.lattice, len(coords), args.Nx, args.Ny, args.Nz, coords)
+        plot_stem = shell_plot_stem(
+            automatic_plot_stem(args.lattice, len(coords), args.Nx, args.Ny, args.Nz, coords),
+            args.neighbor_shell,
+        )
         site_labels = None
         permutation_key = None
         if args.plot_permutation_file is not None:
@@ -2121,13 +2473,22 @@ def main() -> None:
             legend_fontsize=18.0,
         )
 
-        pbc = (periodic_x, True, False)
+        if args.format == "edgelist":
+            print_edge_list(out_edges, [
+                f"lattice = {args.lattice}",
+                f"Nx Ny Nz = {args.Nx} {args.Ny} {args.Nz}",
+                f"n_sites = {len(coords)}",
+                f"neighbor_shell = {args.neighbor_shell}",
+                f"n_edges = {len(out_edges)}",
+            ])
+            return
+
         if args.format == "json":
             payload = {
                 "lattice": args.lattice,
                 "kind": kind,
                 "n_sites": len(coords),
-                "n_edges": len(edges),
+                "n_edges": len(out_edges),
                 "expected_degree": expected_degree_label,
                 "expected_components": 1,
                 "pbc": pbc,
@@ -2137,11 +2498,12 @@ def main() -> None:
                 "Ny": args.Ny,
                 "Nz": args.Nz,
                 "coords": coords,
-                "edges": edges,
+                "edges": out_edges,
                 "plot_png": str(png_path),
                 "plot_pdf": str(pdf_path),
                 "plot_rotation_degrees": degrees(plot_rotation),
             }
+            payload.update(shell_json_fields(shell_meta))
             if permutation_key is not None:
                 payload["plot_permutation_file"] = args.plot_permutation_file
                 payload["plot_permutation_key"] = permutation_key
@@ -2161,7 +2523,9 @@ def main() -> None:
         print(f"# period_x = {period_x}")
         print(f"# period_y = {period_y}")
         print(f"# n_sites = {len(coords)}")
-        print(f"# n_edges = {len(edges)}")
+        print(f"# n_edges = {len(out_edges)}")
+        for line in shell_header_lines(shell_meta):
+            print(f"# {line}")
         print(f"# plot_rotation_degrees = {degrees(plot_rotation):.12g}")
         if permutation_key is not None:
             print(f"# plot_permutation_file = {args.plot_permutation_file}")
@@ -2174,7 +2538,7 @@ def main() -> None:
         print()
         print_compact_coords(coords, per_line=args.coords_per_line)
         print()
-        print_compact_edges(edges, per_line=args.edges_per_line)
+        print_compact_edges(out_edges, per_line=args.edges_per_line)
         return
 
     if args.supercell is not None and args.tilted is not None:
@@ -2220,7 +2584,11 @@ def main() -> None:
         if min(args.Nx, args.Ny, args.Nz) <= 0:
             raise ValueError("--Nx, --Ny, and --Nz must be positive integers.")
 
-        if (args.lattice in KAGOME_VARIANTS or args.lattice == "triangularBtorus") and args.Nz != 1:
+        if (
+            args.lattice in KAGOME_VARIANTS
+            or args.lattice == "triangularBtorus"
+            or args.lattice in SQUARE_VARIANTS
+        ) and args.Nz != 1:
             raise ValueError("Two-dimensional lattice variants require --Nz 1.")
 
         coords, edges = lattice.make_diagonal(args.Nx, args.Ny, args.Nz, a=args.a)
@@ -2229,6 +2597,14 @@ def main() -> None:
             validate_graph(lattice, coords, edges)
 
     if used_tilted:
+        periods = supercell_periods(supercell, lattice.bravais, a=args.a)  # type: ignore[arg-type]
+    else:
+        periods = diagonal_periods(lattice, args.Nx, args.Ny, args.Nz, args.a)
+    out_edges, shell_meta = resolve_output_edges(args, coords, periods, edges)
+
+    if args.neighbor_shell != 1:
+        plot_segments = build_periodic_plot_segments(coords, out_edges, periods)
+    elif used_tilted:
         plot_segments = build_supercell_plot_segments(lattice, coords, supercell, a=args.a)  # type: ignore[arg-type]
     else:
         plot_segments = build_diagonal_plot_segments(
@@ -2240,14 +2616,17 @@ def main() -> None:
             a=args.a,
         )
 
-    plot_stem = automatic_plot_stem(
-        args.lattice,
-        len(coords),
-        args.Nx,
-        args.Ny,
-        args.Nz,
-        coords,
-        tilted_key=tilted_key,
+    plot_stem = shell_plot_stem(
+        automatic_plot_stem(
+            args.lattice,
+            len(coords),
+            args.Nx,
+            args.Ny,
+            args.Nz,
+            coords,
+            tilted_key=tilted_key,
+        ),
+        args.neighbor_shell,
     )
     site_labels = None
     permutation_key = None
@@ -2273,19 +2652,34 @@ def main() -> None:
         supersite_blocks=supersite_blocks,
     )
 
+    if args.format == "edgelist":
+        header = [f"lattice = {args.lattice}"]
+        if used_tilted:
+            header.append(f"tilted = pyrochlore{tilted_key}")
+        else:
+            header.append(f"Nx Ny Nz = {args.Nx} {args.Ny} {args.Nz}")
+        header += [
+            f"n_sites = {len(coords)}",
+            f"neighbor_shell = {args.neighbor_shell}",
+            f"n_edges = {len(out_edges)}",
+        ]
+        print_edge_list(out_edges, header)
+        return
+
     if args.format == "json":
         payload = {
             "lattice": args.lattice,
             "n_sites": len(coords),
-            "n_edges": len(edges),
+            "n_edges": len(out_edges),
             "expected_degree": expected_degree(lattice),
             "expected_components": lattice.expected_components,
             "pbc": lattice.pbc,
             "coords": coords,
-            "edges": edges,
+            "edges": out_edges,
             "plot_png": str(png_path),
             "plot_pdf": str(pdf_path),
         }
+        payload.update(shell_json_fields(shell_meta))
 
         if used_tilted:
             payload["tilted"] = tilted_key
@@ -2323,7 +2717,9 @@ def main() -> None:
     print(f"# expected_components = {lattice.expected_components}")
     print(f"# pbc = {lattice.pbc}")
     print(f"# n_sites = {len(coords)}")
-    print(f"# n_edges = {len(edges)}")
+    print(f"# n_edges = {len(out_edges)}")
+    for line in shell_header_lines(shell_meta):
+        print(f"# {line}")
     if permutation_key is not None:
         print(f"# plot_permutation_file = {args.plot_permutation_file}")
         print(f"# plot_permutation_key = {permutation_key}")
@@ -2336,7 +2732,7 @@ def main() -> None:
 
     print_compact_coords(coords, per_line=args.coords_per_line)
     print()
-    print_compact_edges(edges, per_line=args.edges_per_line)
+    print_compact_edges(out_edges, per_line=args.edges_per_line)
 
 
 if __name__ == "__main__":
