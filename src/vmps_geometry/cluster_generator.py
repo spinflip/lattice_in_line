@@ -1725,7 +1725,16 @@ def plot_lattice(
     site_marker_size: float = 20.0,
     legend_fontsize: float | None = None,
 ) -> Tuple[Path, Path]:
-    import matplotlib
+    # Plotting is optional: matplotlib lives in the "plot" extra. If it is not
+    # installed, skip rendering (the CLI still prints coords/edges) instead of
+    # crashing.
+    try:
+        import matplotlib
+    except ImportError:
+        print("matplotlib not installed; skipping plot "
+              "(pip install 'vmps_geometry[plot]')", file=sys.stderr)
+        stem = Path(output_stem)
+        return stem.with_suffix(".png"), stem.with_suffix(".pdf")
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

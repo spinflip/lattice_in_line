@@ -8,10 +8,23 @@ version = "0.1.0"
 description = "Geometry helpers, cluster graphs, permutations, and unit-cell files for VMPS"
 requires-python = ">=3.10"
 dependencies = [
-    "matplotlib",
     "numpy",
-    "scipy",
 ]
+
+[project.optional-dependencies]
+# Cluster plotting (vmps-cluster-generator). Without it, plots are skipped.
+plot = ["matplotlib"]
+# Bandwidth certification: CP-SAT solver + independent SAT cross-check.
+certify = ["ortools", "python-sat"]
+# Orbit (Aut(G)) symmetry breaking. Optional; the certifier falls back to
+# reversal symmetry when absent. Prebuilt wheels can be CPU-incompatible.
+orbits = ["pynauty"]
+# QUBO experiment track (qubo/*, uses scipy's reverse Cuthill-McKee).
+qubo = ["scipy"]
+# Test suite.
+dev = ["pytest"]
+# Everything.
+all = ["matplotlib", "ortools", "python-sat", "pynauty", "scipy"]
 
 [project.scripts]
 vmps-cluster-generator = "vmps_geometry.cluster_generator:main"
