@@ -171,6 +171,12 @@ header-only library **[libtsqubo](https://github.com/rliang/libtsqubo)** by rlia
 (MIT, © 2021 rliang); that header is vendored at `qubo/cpp/libtsqubo/tsqubo.h` with its
 original license.
 
+**Reference.** The QUBO formulations used here follow Qinyu Guo and Michael J. Dinneen,
+*"Quantum Annealing for Computing Bandwidth: QUBO Formulations and Solution Strategies"*
+(School of Computer Science, University of Auckland). Its three modeling strategies —
+decision-based with external binary search, optimization-based with auxiliary/slack
+variables, and exponential-penalty — correspond to this track's solver modes.
+
 ## Development
 
 ```bash
