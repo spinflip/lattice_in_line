@@ -28,8 +28,13 @@
 #   SOFTEN_MIN     start the sweep at this s (for resuming a partial sweep)    (0)
 #   SOFTEN         shortcut for a SINGLE cap: sets SOFTEN_MIN=SOFTEN_MAX=SOFTEN ()
 #   TIME_PER_K     seconds per ONE CP-SAT k2 decision        (14400)
-#   LADDER_TIME    wall-clock cap for each softening's whole ladder; best-so-far
-#                  is still exported. 0 = no cap (needs `timeout`/`gtimeout`) (0)
+#   LADDER_TIME    per-softening wall-clock budget (SA seed + ladder); best-so-far
+#                  is still exported. 0 = no cap. Enforced by coreutils timeout,
+#                  or an inline bash fallback if absent.                       (0)
+#   HEUR_TIME      seconds for a parallel-SA seed (lex-heuristic) run BEFORE the
+#                  ladder, warm-starting it via shared state. auto = half of
+#                  LADDER_TIME when capped, else 0 (skip). 0 disables.       (auto)
+#   PROCS          parallel SA chains for the seed              (all cores)
 #   WORKERS        CP-SAT threads per decision               (16)
 #   SEED           heuristic seed                            (1)
 #   SYMMETRY       navigation symmetry: orbit|reversal       (reversal)
@@ -73,7 +78,15 @@ TIME_PER_K="${TIME_PER_K:-14400}"   # budget for ONE CP-SAT k2 decision
 # Overall wall-clock cap for the lex-ladder of EACH softening (0 = no cap). A
 # ladder makes many decisions, each up to TIME_PER_K, so without a cap a hard
 # large-torus sweep can run for days. On a cap the best-so-far is kept/exported.
-LADDER_TIME="${LADDER_TIME:-0}"
+LADDER_TIME="${LADDER_TIME:-0}"; LADDER_TIME="${LADDER_TIME%.*}"   # integer seconds
+# Parallel multi-start SA seed run BEFORE the ladder each softening (lex-heuristic).
+# It warm-starts the ladder via the shared state and is the main quality driver
+# for large systems the ladder cannot close. HEUR_TIME seconds, PROCS chains.
+#   HEUR_TIME=auto (default): if LADDER_TIME>0, take half the per-cap budget
+#             (ladder gets the rest); else 0 (uncapped/small runs skip the SA
+#             seed and rely on the ladder's own). Set HEUR_TIME=<secs> to force.
+HEUR_TIME="${HEUR_TIME:-auto}"
+PROCS="${PROCS:-$( (command -v nproc >/dev/null 2>&1 && nproc) || sysctl -n hw.ncpu 2>/dev/null || echo 8)}"
 WORKERS="${WORKERS:-16}"
 SEED="${SEED:-1}"
 SYMMETRY="${SYMMETRY:-reversal}"
@@ -101,6 +114,20 @@ C() { "$PYTHON" "$CERT" "$@" --cluster "$J1" --state-dir "$STATE_DIR" \
         --edges-module "$EDGES_MODULE"; }
 
 log() { echo "[$(date '+%F %T')] $*"; }
+
+# Portable wall-clock cap: like `timeout SECS cmd...`, returns 124 if it had to
+# kill the child. Used when coreutils timeout/gtimeout is unavailable (e.g. bare
+# macOS) so the LADDER_TIME budget is guaranteed everywhere. Callable via the
+# same array form as timeout (bash resolves a function in command position).
+_timeout() {
+  local secs="$1"; shift
+  "$@" & local pid=$!
+  ( sleep "$secs"; kill -TERM "$pid" 2>/dev/null ) & local watcher=$!
+  wait "$pid" 2>/dev/null; local rc=$?
+  kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null
+  [[ "$rc" -ge 128 ]] && return 124   # killed by a signal -> mimic timeout(1)
+  return "$rc"
+}
 
 # k2 window from a lex state JSON ($1); prints "LB UB" (UB=-1 if no result)
 window() {
@@ -178,12 +205,24 @@ run_cap() {
   local k1args=(--k1 "$eff")
   log "================  softening s=$s  ->  J1 cap k1=$eff  ================"
 
+  # phase 0: parallel multi-start SA seed. Shares the lex state, so the ladder
+  # below automatically warm-starts from the SA incumbent. This is the main
+  # quality driver for large systems the ladder cannot close.
+  if [[ "$HEUR_TIME" -gt 0 ]]; then
+    log "phase 0: lex-heuristic ${HEUR_TIME}s x ${PROCS} procs (parallel SA), k1=$eff"
+    "$PYTHON" "$CERT" lex-heuristic \
+      --cluster "$J1" --state-dir "$STATE_DIR" --edges-module "$EDGES_MODULE" \
+      "${J2_ARGS[@]}" "${k1args[@]}" \
+      --time "$HEUR_TIME" --procs "$PROCS" --workers "$WORKERS" --seed "$SEED" \
+      --symmetry "$SYMMETRY" || log "softening $s: lex-heuristic returned nonzero (continuing)"
+  fi
+
   local capnote=""
-  [[ -n "$LADDER_BIN" ]] && capnote=", cap ${LADDER_TIME}s"
+  [[ -n "$LADDER_BIN" ]] && capnote=", cap ${LADDER_CAP}s"
   log "phase 1: lex-ladder (k1=$eff, time-per-k=${TIME_PER_K}s, workers=${WORKERS}, symmetry=${SYMMETRY}${capnote})"
   # timeout can't wrap the C() function, so build the certifier call as an array
   local cmd=()
-  [[ -n "$LADDER_BIN" ]] && cmd+=("$LADDER_BIN" "$LADDER_TIME")
+  [[ -n "$LADDER_BIN" ]] && cmd+=("$LADDER_BIN" "$LADDER_CAP")
   cmd+=("$PYTHON" "$CERT" lex-ladder
         --cluster "$J1" --state-dir "$STATE_DIR" --edges-module "$EDGES_MODULE"
         "${J2_ARGS[@]}" "${k1args[@]}"
@@ -191,7 +230,7 @@ run_cap() {
   local rc=0
   "${cmd[@]}" || rc=$?
   if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
-    log "softening $s: ladder hit LADDER_TIME=${LADDER_TIME}s wall-clock cap; exporting best-so-far"
+    log "softening $s: ladder hit ${LADDER_CAP}s cap; exporting best-so-far"
   elif [[ "$rc" -ne 0 ]]; then
     log "softening $s: lex-ladder failed (rc=$rc, see above); skipping this cap"
     SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")")
@@ -238,15 +277,31 @@ if [[ "$SOFTEN_MIN" -gt "$SOFTEN_MAX" ]]; then
   log "ERROR: SOFTEN_MIN ($SOFTEN_MIN) > SOFTEN_MAX ($SOFTEN_MAX)"
   exit 1
 fi
-# resolve the per-softening wall-clock cap binary, if requested
+# resolve the per-softening wall-clock cap binary: real coreutils timeout if
+# present, else the inline _timeout function so the budget holds everywhere.
 LADDER_BIN=""
 if [[ "${LADDER_TIME%.*}" -gt 0 ]]; then
   if command -v timeout >/dev/null 2>&1; then LADDER_BIN=timeout
   elif command -v gtimeout >/dev/null 2>&1; then LADDER_BIN=gtimeout
-  else log "warning: LADDER_TIME=${LADDER_TIME} set but no timeout/gtimeout; cap disabled"; fi
+  else LADDER_BIN=_timeout; log "no coreutils timeout; using inline bash fallback"; fi
 fi
+
+# split the per-softening budget between the parallel SA seed (HEUR_TIME) and
+# the ladder (LADDER_CAP): with a cap set, SA takes half and the ladder the rest.
+if [[ "$HEUR_TIME" == "auto" ]]; then
+  # Only invest in a big parallel-SA phase for CAPPED (large) runs where the
+  # ladder can't close. Uncapped (small) runs close fast on the ladder's own
+  # 120s seed, so skip phase 0 there. Force it anytime with HEUR_TIME=<secs>.
+  if [[ "$LADDER_TIME" -gt 0 ]]; then HEUR_TIME=$(( LADDER_TIME / 2 )); else HEUR_TIME=0; fi
+fi
+LADDER_CAP="$LADDER_TIME"
+if [[ "$LADDER_TIME" -gt 0 && "$HEUR_TIME" -gt 0 ]]; then
+  LADDER_CAP=$(( LADDER_TIME - HEUR_TIME )); [[ "$LADDER_CAP" -lt 60 ]] && LADDER_CAP=60
+fi
+
 log "softening sweep: s = ${SOFTEN_MIN}..${SOFTEN_MAX}  (base J1 cap k1=$BASE_K1)"
-[[ -n "$LADDER_BIN" ]] && log "per-softening wall-clock cap: ${LADDER_TIME}s (via $LADDER_BIN)"
+[[ "$HEUR_TIME" -gt 0 ]] && log "phase-0 parallel SA: ${HEUR_TIME}s x ${PROCS} procs per softening"
+[[ -n "$LADDER_BIN" ]] && log "per-softening ladder cap: ${LADDER_CAP}s (via $LADDER_BIN)"
 SUMMARY=()
 for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
   run_cap "$s"

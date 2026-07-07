@@ -7,10 +7,11 @@
 #
 # Time budget: the driver sweeps SOFTEN_MAX+1 softenings (J1 caps base..base+
 # SOFTEN_MAX). EACH softening / relaxed k1 value gets a 10h wall-clock budget
-# (LADDER_TIME=36000s); it may finish early if its ladder runs out of moves.
-# Overall ceiling = (SOFTEN_MAX+1) * 10h; set SOFTEN_MAX to bound how many
-# relaxed values you sweep. CPU use peaks at WORKERS (one CP-SAT solve at a
-# time) <= 160.
+# (LADDER_TIME=36000s), split by the driver into a ~5h parallel-SA seed phase
+# (HEUR_TIME) and a ~5h ladder phase; it may finish early if the ladder runs
+# out of moves. Overall ceiling = (SOFTEN_MAX+1) * 10h; set SOFTEN_MAX to bound
+# how many relaxed values you sweep. The two phases run sequentially, so CPU use
+# peaks at max(PROCS SA chains, WORKERS CP-SAT threads) = 160.
 #
 # Prerequisite: the cluster's J1 bandwidth must be in the shared data dir
 # (run ./certify_large.sh <cluster> first), or pass K1=<cap>.
@@ -38,6 +39,7 @@ STATE_DIR="$DATA_DIR/bw_run_${J1}" \
 SOFTEN_MAX="${SOFTEN_MAX:-5}" \
 TIME_PER_K="${TIME_PER_K:-7200}" \
 LADDER_TIME="${LADDER_TIME:-36000}" \
+PROCS="${PROCS:-160}" \
 SAT_TIME="${SAT_TIME:-0}" \
 WORKERS="${WORKERS:-160}" \
 SEED="${SEED:-1}" \
