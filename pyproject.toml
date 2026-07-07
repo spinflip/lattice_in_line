@@ -52,6 +52,14 @@ vmps_geometry = [
     "unit_cell/*.py",
     "*.sh",
 ]
+# Vendored C++ QUBO solvers (built out-of-tree; see qubo/cpp/Makefile).
+"vmps_geometry.qubo" = [
+    "cpp/Makefile",
+    "cpp/*.cpp",
+    "cpp/libtsqubo/tsqubo.h",
+    "cpp/libtsqubo/LICENSE",
+    "cpp/libtsqubo/README.md",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

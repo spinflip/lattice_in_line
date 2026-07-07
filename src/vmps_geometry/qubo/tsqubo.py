@@ -1,4 +1,10 @@
-"""Dense NumPy tabu search for QUBO, with optional fixed-cardinality search."""
+"""Dense NumPy tabu search for QUBO, with optional fixed-cardinality search.
+
+Translated into Python from the C++ header-only library ``libtsqubo`` by rliang
+(https://github.com/rliang/libtsqubo, MIT License, Copyright (c) 2021 rliang).
+The original C++ header is vendored, alongside the solvers that use it, under
+``qubo/cpp/libtsqubo/tsqubo.h``.
+"""
 
 from __future__ import annotations
 

@@ -149,6 +149,28 @@ CI regenerates and diffs it, so the committed table can never drift from the gen
 extra). It carries none of the certifier's guarantees and is not maintained in lockstep
 with it — prefer `vmps-bandwidth-certifier` for real results.
 
+The heavy lifting is done by two **C++ solvers** the Python front-ends shell out to.
+Their source is vendored under [`src/vmps_geometry/qubo/cpp/`](src/vmps_geometry/qubo/cpp);
+build them with `make` (the QUBO solver needs [Eigen](https://eigen.tuxfamily.org);
+the Makefile auto-detects a Homebrew/system `eigen3`):
+
+```bash
+cd src/vmps_geometry/qubo/cpp
+make                                   # -> bandwidth_qubo_tsq_cpp, bandwidth_classical_compare_cpp
+```
+
+Point the Python driver at the built binary with `--cpp-binary`
+(default: `bandwidth_qubo_tsq_cpp`, looked up from the working directory):
+
+```bash
+vmps-qubo-bandwidth ... --cpp-binary src/vmps_geometry/qubo/cpp/bandwidth_qubo_tsq_cpp
+```
+
+The dense NumPy tabu-search solver `qubo/tsqubo.py` is a Python translation of the C++
+header-only library **[libtsqubo](https://github.com/rliang/libtsqubo)** by rliang
+(MIT, © 2021 rliang); that header is vendored at `qubo/cpp/libtsqubo/tsqubo.h` with its
+original license.
+
 ## Development
 
 ```bash

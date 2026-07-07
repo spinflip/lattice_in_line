@@ -11,3 +11,7 @@ dist/
 bw_run_*/
 plots/
 IMPROVEMENTS.md
+# compiled QUBO C++ solvers (build artifacts of qubo/cpp)
+src/vmps_geometry/qubo/cpp/bandwidth_qubo_tsq_cpp
+src/vmps_geometry/qubo/cpp/bandwidth_classical_compare_cpp
+src/vmps_geometry/qubo/cpp/*.dSYM/
