@@ -1,3 +1,14 @@
+"""Correlation-aware (Fiedler) cluster permutations.
+
+Orderings produced by ``fiedler_ordering.py`` from DMRG two-site correlations
+(the ``chi=...`` comment on each entry is the bond dimension of the run the
+correlations came from). Same ``{site: position}`` schema as the other
+``permutations*`` tables (``permutations_sat``, ``permutations_qubo``, and the
+merged default in ``permutations``), but kept separate because these are derived
+from a physical state rather than from bandwidth optimization, and are selected
+explicitly by name rather than folded into the default table.
+"""
+
 CUSTOM_PERMUTATIONS = {
 	# from chi=20000
 	"C60": {0: 59, 1: 57, 2: 51, 3: 50, 4: 55, 5: 54, 6: 47, 7: 48, 8: 58, 9: 53, 10: 52, 11: 56, 12: 45, 13: 44, 14: 49, 15: 35, 16: 36, 17: 46, 18: 43, 19: 42, 20: 29, 21: 32, 22: 40, 23: 41, 24: 37, 25: 33, 26: 28, 27: 25, 28: 20, 29: 23, 30: 24, 31: 26, 32: 31, 33: 34, 34: 39, 35: 38, 36: 30, 37: 27, 38: 18, 39: 19, 40: 6, 41: 7, 42: 3, 43: 14, 44: 15, 45: 10, 46: 22, 47: 21, 48: 13, 49: 16, 50: 17, 51: 5, 52: 12, 53: 11, 54: 1, 55: 0, 56: 2, 57: 8, 58: 9, 59: 4},

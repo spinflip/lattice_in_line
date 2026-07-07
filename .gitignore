@@ -9,4 +9,5 @@ dist/
 *.pdf
 *.log
 bw_run_*/
+plots/
 IMPROVEMENTS.md

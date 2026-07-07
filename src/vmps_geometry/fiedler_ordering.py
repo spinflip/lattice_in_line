@@ -243,19 +243,26 @@ def refine(W, order, objective, time_budget, seed):
     cur = pos.copy()
     curval = best
     bestpos = pos.copy()
+    # inv[p] = the site currently at position p (inverse of the site->position
+    # map `cur`), kept in sync so the swaps/relocations below are O(1) lookups
+    # instead of O(n) np.where scans.
+    inv = np.empty(n, dtype=int)
+    inv[cur] = np.arange(n)
     while _t.time() < t_end:
         improved = False
         # pass 1: all adjacent transpositions
         for p in range(n - 1):
-            a = int(np.where(cur == p)[0][0])
-            b = int(np.where(cur == p + 1)[0][0])
+            a = int(inv[p])
+            b = int(inv[p + 1])
             cur[a], cur[b] = cur[b], cur[a]
+            inv[p], inv[p + 1] = b, a
             val = objective_value(W, cur, objective)
             if val < curval - 1e-12:
                 curval = val
                 improved = True
             else:
                 cur[a], cur[b] = cur[b], cur[a]
+                inv[p], inv[p + 1] = a, b
         # pass 2: random relocations of a site to a nearby position
         for _ in range(2 * n):
             v = rng.randrange(n)
@@ -267,12 +274,13 @@ def refine(W, order, objective, time_budget, seed):
             newpos = cur.copy()
             step = 1 if p_new > p_old else -1
             for q in range(p_old, p_new, step):
-                w_at = int(np.where(cur == q + step)[0][0])
+                w_at = int(inv[q + step])
                 newpos[w_at] = q
             newpos[v] = p_new
             val = objective_value(W, newpos, objective)
             if val < curval - 1e-12:
                 cur, curval, improved = newpos, val, True
+                inv[cur] = np.arange(n)   # accepted -> rebuild the inverse
         if curval < best - 1e-12:
             best, bestpos = curval, cur.copy()
         if not improved:
