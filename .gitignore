@@ -9,3 +9,4 @@ dist/
 *.pdf
 *.log
 bw_run_*/
+IMPROVEMENTS.md
