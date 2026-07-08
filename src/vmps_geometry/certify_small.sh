@@ -38,3 +38,7 @@ nohup bash -c '
       ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_$c.log" 2>&1
   done
 ' bash "$DATA_DIR" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
+
+echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"
+echo "  batch log:    $DATA_DIR/certify_small.log"
+echo "  per-cluster:  $DATA_DIR/certify_<cluster>.log"

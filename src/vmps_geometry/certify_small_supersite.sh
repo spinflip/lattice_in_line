@@ -108,3 +108,7 @@ PY
   done
 ' bash "$DATA_DIR" "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${CLUSTERS[@]}" \
   >> "$DATA_DIR/certify_small_supersite${CTAG}.log" 2>&1 &
+
+echo "launched supersite batch for ${#CLUSTERS[@]} cluster(s) (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"
+echo "  batch log:    $DATA_DIR/certify_small_supersite${CTAG}.log"
+echo "  per-cluster:  $DATA_DIR/certify_ss_<cluster>_block${BLOCK}${CTAG}.log"
