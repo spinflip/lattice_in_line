@@ -95,6 +95,16 @@ SYMMETRY="${SYMMETRY:-reversal}"
 SAT_TIME="${SAT_TIME:-0}"
 FINAL_SYM="${FINAL_SYM:-reversal}"
 
+# Resolve the per-softening SA-seed vs ladder budget split up front (needed by
+# the plan and by run_cap). auto: half to the SA seed when capped, else 0.
+if [[ "$HEUR_TIME" == "auto" ]]; then
+  if [[ "$LADDER_TIME" -gt 0 ]]; then HEUR_TIME=$(( LADDER_TIME / 2 )); else HEUR_TIME=0; fi
+fi
+LADDER_CAP="$LADDER_TIME"
+if [[ "$LADDER_TIME" -gt 0 && "$HEUR_TIME" -gt 0 ]]; then
+  LADDER_CAP=$(( LADDER_TIME - HEUR_TIME )); [[ "$LADDER_CAP" -lt 60 ]] && LADDER_CAP=60
+fi
+
 mkdir -p "$STATE_DIR"
 
 # J2 source: an existing file => --j2-file; otherwise a named entry looked up in
@@ -154,6 +164,35 @@ st = json.load(open(sys.argv[1]))
 print(st["unsat"].get(sys.argv[2], "none"))
 EOF
 }
+
+# --------- campaign plan: phases per softening and their budgets. PLAN_ONLY=1
+# prints the plan and exits (the launchers use it to show the plan on launch).
+_budget() { [[ "${1%.*}" -gt 0 ]] && echo "${1}s" || echo "skipped"; }
+print_plan() {
+  log "================  lex campaign plan  ================"
+  log "J1=$J1  J2=$J2NAME  symmetry $SYMMETRY"
+  log "  state dir       : $STATE_DIR"
+  log "  softening sweep : s = ${SOFTEN_MIN}..${SOFTEN_MAX}   (J1 cap k1 = base_k1 + s)"
+  log "  per softening / relaxed k1 value:"
+  if [[ "$HEUR_TIME" -gt 0 ]]; then
+    log "    phase 0  parallel-SA seed (lex-heuristic) : ${HEUR_TIME}s x ${PROCS} procs"
+  else
+    log "    phase 0  parallel-SA seed                 : skipped (HEUR_TIME=0)"
+  fi
+  local capnote=""
+  [[ "$LADDER_TIME" -gt 0 ]] && capnote=", capped ${LADDER_CAP}s"
+  log "    phase 1  CP-SAT k2 decision ladder        : ${TIME_PER_K}s per k2-decision  (${WORKERS} workers)${capnote}"
+  log "    phase 2  SAT cross-check of decisive k2   : $(_budget "$SAT_TIME")"
+  log "    phase 3  export the labeling"
+  if [[ "$LADDER_TIME" -gt 0 ]]; then
+    log "  per-softening budget : ${LADDER_TIME}s  (overall <= $(( (SOFTEN_MAX - SOFTEN_MIN + 1) * LADDER_TIME ))s)"
+  else
+    log "  per-softening budget : uncapped"
+  fi
+  log "===================================================="
+}
+print_plan
+if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi
 
 # best-known J1 bandwidth (the upper bound "ub") and whether it is certified
 # (lb==ub). Prints "UB CERTIFIED" (UB="" if no result yet, CERTIFIED=0|1).
@@ -286,19 +325,6 @@ if [[ "${LADDER_TIME%.*}" -gt 0 ]]; then
   if command -v timeout >/dev/null 2>&1; then LADDER_BIN=timeout
   elif command -v gtimeout >/dev/null 2>&1; then LADDER_BIN=gtimeout
   else LADDER_BIN=_timeout; log "no coreutils timeout; using inline bash fallback"; fi
-fi
-
-# split the per-softening budget between the parallel SA seed (HEUR_TIME) and
-# the ladder (LADDER_CAP): with a cap set, SA takes half and the ladder the rest.
-if [[ "$HEUR_TIME" == "auto" ]]; then
-  # Only invest in a big parallel-SA phase for CAPPED (large) runs where the
-  # ladder can't close. Uncapped (small) runs close fast on the ladder's own
-  # 120s seed, so skip phase 0 there. Force it anytime with HEUR_TIME=<secs>.
-  if [[ "$LADDER_TIME" -gt 0 ]]; then HEUR_TIME=$(( LADDER_TIME / 2 )); else HEUR_TIME=0; fi
-fi
-LADDER_CAP="$LADDER_TIME"
-if [[ "$LADDER_TIME" -gt 0 && "$HEUR_TIME" -gt 0 ]]; then
-  LADDER_CAP=$(( LADDER_TIME - HEUR_TIME )); [[ "$LADDER_CAP" -lt 60 ]] && LADDER_CAP=60
 fi
 
 log "softening sweep: s = ${SOFTEN_MIN}..${SOFTEN_MAX}  (base J1 cap k1=$BASE_K1)"

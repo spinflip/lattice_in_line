@@ -50,8 +50,33 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
+# timeouts shared by every cluster in the batch (single source, threaded below)
+CENV=(
+  TIME_HEUR=3600 STALL=600 TIME_OPT=3600 TIME_PER_K=28800
+  SAT_TIME=0 POLISH_TIME=1800 WORKERS=16 PROCS=40 JOBS_PER_SIDE=2 SEED=1
+)
+# representative plan on the terminal: parse the first cluster's seed geometry
+_PARSE=$(python3 -c 'import re,sys
+name=sys.argv[1]
+D={"pyrochlore32":(2,2,2),"pyrochlore108":(3,3,3)}
+T={"pyrochlore48a":"48a","pyrochlore48b":"48b","pyrochlore48c":"48c","pyrochlore48d":"48d","pyrochlore64":"64","pyrochlore128":"128"}
+if name in D: print("DIAG pyrochlore",*D[name])
+elif name in T: print("TILTED pyrochlore",T[name])
+else:
+ m=re.match(r"^([A-Za-z]+)\d+_(\d+)x(\d+)(?:x(\d+))?$",name)
+ if m: print("DIAG",m.group(1),m.group(2),m.group(3),m.group(4) or "1")' "${CLUSTERS[0]}")
+_L=""; _X=""; _Y=""; _Z=""; _T=""
+read -r _MT _REST <<< "$_PARSE"
+if [ "$_MT" = "DIAG" ]; then read -r _L _X _Y _Z <<< "$_REST"
+elif [ "$_MT" = "TILTED" ]; then read -r _L _T <<< "$_REST"; fi
+env "${CENV[@]}" MODE=ss BLOCK="$BLOCK" MIN_INTRA="$MIN_INTRA" INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
+  LATTICE="$_L" NX="$_X" NY="$_Y" NZ="$_Z" TILTED="$_T" \
+  STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTERS[0]}_block${BLOCK}" PLAN_ONLY=1 \
+  ./certify_cluster.sh "${CLUSTERS[0]}"
+
 nohup bash -c '
-  DATA_DIR="$1"; BLOCK="$2"; MIN_INTRA="$3"; INTRA_PER_BLOCK="$4"; CTAG="$5"; shift 5
+  DATA_DIR="$1"; BLOCK="$2"; MIN_INTRA="$3"; INTRA_PER_BLOCK="$4"; CTAG="$5"; NENV="$6"; shift 6
+  CENV=( "${@:1:$NENV}" ); shift "$NENV"
 
   parse_cluster() {
     python3 - "$1" <<"PY"
@@ -84,30 +109,14 @@ PY
     else
       echo "=== $c (block '"'"'$BLOCK'"'"', no phase-0 seed) ==="
     fi
-    LATTICE="$LATTICE" \
-    NX="$NX" \
-    NY="$NY" \
-    NZ="$NZ" \
-    TILTED="$TILTED" \
-    MODE=ss \
-    BLOCK="$BLOCK" \
-    MIN_INTRA="$MIN_INTRA" \
-    INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
-    STATE_DIR="$DATA_DIR/bw_run_ss_${c}_block${BLOCK}" \
-    TIME_HEUR=3600 \
-    STALL=600 \
-    TIME_OPT=3600 \
-    TIME_PER_K=28800 \
-    SAT_TIME=0 \
-    POLISH_TIME=1800 \
-    WORKERS=16 \
-    PROCS=40 \
-    JOBS_PER_SIDE=2 \
-    SEED=1 \
+    env "${CENV[@]}" \
+      LATTICE="$LATTICE" NX="$NX" NY="$NY" NZ="$NZ" TILTED="$TILTED" \
+      MODE=ss BLOCK="$BLOCK" MIN_INTRA="$MIN_INTRA" INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
+      STATE_DIR="$DATA_DIR/bw_run_ss_${c}_block${BLOCK}" \
       ./certify_cluster.sh "$c" \
       > "$DATA_DIR/certify_ss_${c}_block${BLOCK}${CTAG}.log" 2>&1
   done
-' bash "$DATA_DIR" "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${CLUSTERS[@]}" \
+' bash "$DATA_DIR" "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" \
   >> "$DATA_DIR/certify_small_supersite${CTAG}.log" 2>&1 &
 
 echo "launched supersite batch for ${#CLUSTERS[@]} cluster(s) (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"

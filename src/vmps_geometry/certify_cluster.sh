@@ -145,6 +145,40 @@ print(st["unsat"].get(sys.argv[2], "none"))
 PYEOF
 }
 
+# --------- campaign plan: the phases that will run and their time budgets.
+# PLAN_ONLY=1 prints the plan and exits without doing any work (the launchers
+# call it that way to show the plan on the terminal before backgrounding).
+_budget() { [[ "${1%.*}" -gt 0 ]] && echo "${1}s" || echo "skipped"; }
+print_plan() {
+  log "================  campaign plan  ================"
+  if [[ "$MODE" == "ss" ]]; then
+    log "cluster $CLUSTER : supersite bandwidth, block $BLOCK, symmetry $SYMMETRY"
+    log "  hidden-bond constraints : ${SS_TAG:-none (unconstrained)}"
+    log "  state dir               : $STATE_DIR"
+    if [[ -n "$LATTICE" && "$BLOCK" -eq 2 ]]; then
+      log "  phase 0  translation-blocking seed  : ${SEED_HEUR}s heuristic + ${SEED_OPT}s CP-SAT per direction"
+    else
+      log "  phase 0  translation-blocking seed  : skipped (needs LATTICE and block 2)"
+    fi
+    log "  phase 1  heuristic SA upper bound   : ${TIME_HEUR}s  (${PROCS} procs, stall ${STALL}s)"
+    log "  phase 1  CP-SAT decision ladder     : ${TIME_PER_K}s per k-decision  (${WORKERS} workers)"
+    log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")"
+    log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")"
+  else
+    log "cluster $CLUSTER : plain single-site bandwidth, symmetry $SYMMETRY"
+    log "  state dir : $STATE_DIR"
+    log "  phase 1  structural bounds (info)    : instant"
+    log "  phase 2  heuristic upper bound (SA)  : ${TIME_HEUR}s  (${PROCS} procs, stall ${STALL}s)"
+    log "  phase 3  CP-SAT optimize pass        : ${TIME_OPT}s  (${WORKERS} workers)"
+    log "  phase 4  decision ladder             : ${TIME_PER_K}s per k-decision, ${JOBS_PER_SIDE} jobs/side, <= ${MAX_ROUNDS} rounds"
+    log "  phase 5  SAT cross-check (if closed) : $(_budget "$SAT_TIME")"
+    log "  phase 6  range polish at final bw    : $(_budget "$POLISH_TIME")"
+  fi
+  log "================================================"
+}
+print_plan
+if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi
+
 # ================================================================ ss mode
 if [[ "$MODE" == "ss" ]]; then
   log "supersite campaign: block size $BLOCK"

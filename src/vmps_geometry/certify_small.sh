@@ -21,23 +21,23 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
+CENV=(
+  TIME_HEUR=3600 STALL=300 TIME_OPT=3600 TIME_PER_K=14400
+  SAT_TIME=3600 WORKERS=16 PROCS=160 JOBS_PER_SIDE=2 SEED=1
+)
+# show a representative plan on the terminal (same budgets for every cluster)
+env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" PLAN_ONLY=1 \
+  ./certify_cluster.sh "${CLUSTERS[0]}"
+
 nohup bash -c '
-  DATA_DIR="$1"; shift
+  DATA_DIR="$1"; NENV="$2"; shift 2
+  CENV=( "${@:1:$NENV}" ); shift "$NENV"
   for c in "$@"; do
     echo "=== $c ==="
-    STATE_DIR="$DATA_DIR/bw_run_$c" \
-    TIME_HEUR=3600 \
-    STALL=300 \
-    TIME_OPT=3600 \
-    TIME_PER_K=14400 \
-    SAT_TIME=3600 \
-    WORKERS=16 \
-    PROCS=160 \
-    JOBS_PER_SIDE=2 \
-    SEED=1 \
+    env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_$c" \
       ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_$c.log" 2>&1
   done
-' bash "$DATA_DIR" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
+' bash "$DATA_DIR" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
 
 echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"
 for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_$c.log"; done

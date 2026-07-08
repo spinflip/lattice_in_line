@@ -62,25 +62,23 @@ else
   echo "cluster '$CLUSTER' has no parseable geometry; phase 0 seed disabled"
 fi
 
-LATTICE="$LATTICE" \
-NX="$NX" \
-NY="$NY" \
-NZ="$NZ" \
-TILTED="$TILTED" \
-SEED=1 \
-MODE=ss \
-BLOCK="$BLOCK" \
-MIN_INTRA="$MIN_INTRA" \
-INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
-STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTER}_block${BLOCK}" \
-TIME_HEUR=3600 \
-TIME_PER_K=43200 \
-WORKERS=16 \
-PROCS=60 \
-JOBS_PER_SIDE=4 \
-SAT_TIME=0 \
-POLISH_TIME=1800 \
-nohup ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log" 2>&1 &
+CENV=(
+  LATTICE="$LATTICE" NX="$NX" NY="$NY" NZ="$NZ" TILTED="$TILTED"
+  SEED=1 MODE=ss BLOCK="$BLOCK"
+  MIN_INTRA="$MIN_INTRA" INTRA_PER_BLOCK="$INTRA_PER_BLOCK"
+  STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTER}_block${BLOCK}"
+  TIME_HEUR=3600
+  TIME_PER_K=43200
+  WORKERS=16
+  PROCS=60
+  JOBS_PER_SIDE=4
+  SAT_TIME=0
+  POLISH_TIME=1800
+)
+LOG="$DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"
+# show the plan (phases + budgets) on the terminal, then launch for real
+env "${CENV[@]}" PLAN_ONLY=1 ./certify_cluster.sh "$CLUSTER"
+nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$LOG" 2>&1 &
 
 echo "launched supersite campaign for $CLUSTER (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"
-echo "  log (appended): $DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"
+echo "  campaign log: $LOG"

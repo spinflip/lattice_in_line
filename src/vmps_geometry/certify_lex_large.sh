@@ -36,16 +36,20 @@ mkdir -p "$DATA_DIR"
 args=("$J1")
 [ -n "$J2" ] && args+=("$J2")
 
-STATE_DIR="$DATA_DIR/bw_run_${J1}" \
-SOFTEN_MAX="${SOFTEN_MAX:-5}" \
-TIME_PER_K="${TIME_PER_K:-7200}" \
-LADDER_TIME="${LADDER_TIME:-36000}" \
-PROCS="${PROCS:-160}" \
-SAT_TIME="${SAT_TIME:-0}" \
-WORKERS="${WORKERS:-160}" \
-SEED="${SEED:-1}" \
-SYMMETRY="${SYMMETRY:-reversal}" \
-nohup ./certify_lex_cluster.sh "${args[@]}" >> "$DATA_DIR/certify_lex_${J1}.log" 2>&1 &
+CENV=(
+  STATE_DIR="$DATA_DIR/bw_run_${J1}"
+  SOFTEN_MAX="${SOFTEN_MAX:-5}"
+  TIME_PER_K="${TIME_PER_K:-7200}"
+  LADDER_TIME="${LADDER_TIME:-36000}"
+  PROCS="${PROCS:-160}"
+  SAT_TIME="${SAT_TIME:-0}"
+  WORKERS="${WORKERS:-160}"
+  SEED="${SEED:-1}"
+  SYMMETRY="${SYMMETRY:-reversal}"
+)
+# show the plan (phases + budgets) on the terminal, then launch for real
+env "${CENV[@]}" PLAN_ONLY=1 ./certify_lex_cluster.sh "${args[@]}"
+nohup env "${CENV[@]}" ./certify_lex_cluster.sh "${args[@]}" >> "$DATA_DIR/certify_lex_${J1}.log" 2>&1 &
 
 echo "launched lex large campaign for $J1 (pid $!); 10h per relaxed k1 value, <=160 CPUs"
-echo "  log (appended): $DATA_DIR/certify_lex_${J1}.log"
+echo "  campaign log: $DATA_DIR/certify_lex_${J1}.log"

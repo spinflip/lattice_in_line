@@ -47,6 +47,12 @@ WORKERS="${WORKERS:-16}"
 SEED="${SEED:-1}"
 SYMMETRY="${SYMMETRY:-reversal}"
 
+# show a representative plan on the terminal (same budgets for every cluster)
+plan_args=("${CLUSTERS[0]}"); [ -n "$J2" ] && plan_args+=("$J2")
+env STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" TIME_PER_K="$TIME_PER_K" \
+  SAT_TIME="$SAT_TIME" WORKERS="$WORKERS" SEED="$SEED" SYMMETRY="$SYMMETRY" \
+  PLAN_ONLY=1 ./certify_lex_cluster.sh "${plan_args[@]}"
+
 nohup bash -c '
   DATA_DIR="$1"
   TIME_PER_K="$2"; SAT_TIME="$3"; WORKERS="$4"; SEED="$5"; SYMMETRY="$6"; J2="$7"
