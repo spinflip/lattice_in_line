@@ -22,8 +22,10 @@ CENV=(
   WORKERS=16 PROCS=160 JOBS_PER_SIDE=4
   SEED=1
 )
-# show the plan (phases + budgets) on the terminal, then launch for real
-env "${CENV[@]}" PLAN_ONLY=1 ./certify_cluster.sh "$CLUSTER"
+# show the plan (phases + budgets) and confirm, then launch for real
+if ! env "${CENV[@]}" PLAN_ONLY=1 CONFIRM=1 ./certify_cluster.sh "$CLUSTER"; then
+  echo "campaign not launched."; exit 1
+fi
 nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_${CLUSTER}.log" 2>&1 &
 
 echo "launched large campaign for $CLUSTER (pid $!)"

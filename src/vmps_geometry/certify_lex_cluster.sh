@@ -45,6 +45,10 @@
 #   J2_EDGES_MODULE J2 table module for a named J2          (cluster_edges_NNN.py)
 #   CERT           path to bandwidth_certifier.py            (./bandwidth_certifier.py)
 #   PYTHON         interpreter                               (python3)
+#   PLAN_ONLY      1 = print the campaign plan and exit without running   (0)
+#   CONFIRM        1 = after the plan, ask for keyboard y/N confirmation
+#                  (interactive only; the launchers set this)             (0)
+#   YES            1 = skip that confirmation prompt (auto-accept)        (0)
 #
 # Requires bash. If started by sh/dash/zsh, re-exec under bash transparently.
 if [ -z "${BASH_VERSION:-}" ]; then
@@ -165,9 +169,11 @@ print(st["unsat"].get(sys.argv[2], "none"))
 EOF
 }
 
-# --------- campaign plan: phases per softening and their budgets. PLAN_ONLY=1
-# prints the plan and exits (the launchers use it to show the plan on launch).
-_budget() { [[ "${1%.*}" -gt 0 ]] && echo "${1}s" || echo "skipped"; }
+# --------- campaign plan: phases per softening, their budgets (seconds and
+# hours) and CPUs. PLAN_ONLY=1 prints it and exits; CONFIRM=1 also asks for
+# keyboard confirmation (the launchers use both to show the plan on launch).
+_dur() { awk -v s="${1%.*}" 'BEGIN{printf "%ds (%.2fh)", s, s/3600}'; }
+_budget() { [[ "${1%.*}" -gt 0 ]] && _dur "$1" || echo "skipped"; }
 print_plan() {
   log "================  lex campaign plan  ================"
   log "J1=$J1  J2=$J2NAME  symmetry $SYMMETRY"
@@ -175,23 +181,32 @@ print_plan() {
   log "  softening sweep : s = ${SOFTEN_MIN}..${SOFTEN_MAX}   (J1 cap k1 = base_k1 + s)"
   log "  per softening / relaxed k1 value:"
   if [[ "$HEUR_TIME" -gt 0 ]]; then
-    log "    phase 0  parallel-SA seed (lex-heuristic) : ${HEUR_TIME}s x ${PROCS} procs"
+    log "    phase 0  parallel-SA seed (lex-heuristic) : $(_dur "$HEUR_TIME")   CPUs: ${PROCS}  (parallel SA chains)"
   else
     log "    phase 0  parallel-SA seed                 : skipped (HEUR_TIME=0)"
   fi
   local capnote=""
-  [[ "$LADDER_TIME" -gt 0 ]] && capnote=", capped ${LADDER_CAP}s"
-  log "    phase 1  CP-SAT k2 decision ladder        : ${TIME_PER_K}s per k2-decision  (${WORKERS} workers)${capnote}"
-  log "    phase 2  SAT cross-check of decisive k2   : $(_budget "$SAT_TIME")"
-  log "    phase 3  export the labeling"
+  [[ "$LADDER_TIME" -gt 0 ]] && capnote="   (ladder capped at $(_dur "$LADDER_CAP"))"
+  log "    phase 1  CP-SAT k2 decision ladder        : $(_dur "$TIME_PER_K") per k2-decision   CPUs: ${WORKERS}  (solver threads)${capnote}"
+  log "    phase 2  SAT cross-check of decisive k2   : $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
+  log "    phase 3  export the labeling              : instant   CPUs: 1"
   if [[ "$LADDER_TIME" -gt 0 ]]; then
-    log "  per-softening budget : ${LADDER_TIME}s  (overall <= $(( (SOFTEN_MAX - SOFTEN_MIN + 1) * LADDER_TIME ))s)"
+    log "  per-softening budget : $(_dur "$LADDER_TIME")  (overall <= $(_dur $(( (SOFTEN_MAX - SOFTEN_MIN + 1) * LADDER_TIME )) ))"
   else
     log "  per-softening budget : uncapped"
   fi
   log "===================================================="
 }
 print_plan
+# optional keyboard confirmation (interactive terminals only); YES=1 skips it
+if [[ "${CONFIRM:-0}" == 1 && "${YES:-0}" != 1 && -t 0 ]]; then
+  printf '%s' "Proceed with this campaign? [y/N] " > /dev/tty
+  read -r _ans < /dev/tty || _ans=""
+  case "$_ans" in
+    [yY]|[yY][eE][sS]) log "confirmed; launching." ;;
+    *) log "aborted by user; nothing launched."; exit 3 ;;
+  esac
+fi
 if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi
 
 # best-known J1 bandwidth (the upper bound "ub") and whether it is certified

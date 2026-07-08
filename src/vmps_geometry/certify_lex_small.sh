@@ -47,11 +47,13 @@ WORKERS="${WORKERS:-16}"
 SEED="${SEED:-1}"
 SYMMETRY="${SYMMETRY:-reversal}"
 
-# show a representative plan on the terminal (same budgets for every cluster)
+# show a representative plan (same budgets for every cluster) and confirm
 plan_args=("${CLUSTERS[0]}"); [ -n "$J2" ] && plan_args+=("$J2")
-env STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" TIME_PER_K="$TIME_PER_K" \
-  SAT_TIME="$SAT_TIME" WORKERS="$WORKERS" SEED="$SEED" SYMMETRY="$SYMMETRY" \
-  PLAN_ONLY=1 ./certify_lex_cluster.sh "${plan_args[@]}"
+if ! env STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" TIME_PER_K="$TIME_PER_K" \
+     SAT_TIME="$SAT_TIME" WORKERS="$WORKERS" SEED="$SEED" SYMMETRY="$SYMMETRY" \
+     PLAN_ONLY=1 CONFIRM=1 ./certify_lex_cluster.sh "${plan_args[@]}"; then
+  echo "batch not launched."; exit 1
+fi
 
 nohup bash -c '
   DATA_DIR="$1"

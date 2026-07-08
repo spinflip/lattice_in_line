@@ -25,9 +25,11 @@ CENV=(
   TIME_HEUR=3600 STALL=300 TIME_OPT=3600 TIME_PER_K=14400
   SAT_TIME=3600 WORKERS=16 PROCS=160 JOBS_PER_SIDE=2 SEED=1
 )
-# show a representative plan on the terminal (same budgets for every cluster)
-env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" PLAN_ONLY=1 \
-  ./certify_cluster.sh "${CLUSTERS[0]}"
+# show a representative plan (same budgets for every cluster) and confirm
+if ! env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" PLAN_ONLY=1 CONFIRM=1 \
+     ./certify_cluster.sh "${CLUSTERS[0]}"; then
+  echo "batch not launched."; exit 1
+fi
 
 nohup bash -c '
   DATA_DIR="$1"; NENV="$2"; shift 2

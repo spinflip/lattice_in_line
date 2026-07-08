@@ -76,8 +76,10 @@ CENV=(
   POLISH_TIME=1800
 )
 LOG="$DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"
-# show the plan (phases + budgets) on the terminal, then launch for real
-env "${CENV[@]}" PLAN_ONLY=1 ./certify_cluster.sh "$CLUSTER"
+# show the plan (phases + budgets) and confirm, then launch for real
+if ! env "${CENV[@]}" PLAN_ONLY=1 CONFIRM=1 ./certify_cluster.sh "$CLUSTER"; then
+  echo "campaign not launched."; exit 1
+fi
 nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$LOG" 2>&1 &
 
 echo "launched supersite campaign for $CLUSTER (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"

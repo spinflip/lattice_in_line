@@ -47,8 +47,10 @@ CENV=(
   SEED="${SEED:-1}"
   SYMMETRY="${SYMMETRY:-reversal}"
 )
-# show the plan (phases + budgets) on the terminal, then launch for real
-env "${CENV[@]}" PLAN_ONLY=1 ./certify_lex_cluster.sh "${args[@]}"
+# show the plan (phases + budgets) and confirm, then launch for real
+if ! env "${CENV[@]}" PLAN_ONLY=1 CONFIRM=1 ./certify_lex_cluster.sh "${args[@]}"; then
+  echo "campaign not launched."; exit 1
+fi
 nohup env "${CENV[@]}" ./certify_lex_cluster.sh "${args[@]}" >> "$DATA_DIR/certify_lex_${J1}.log" 2>&1 &
 
 echo "launched lex large campaign for $J1 (pid $!); 10h per relaxed k1 value, <=160 CPUs"

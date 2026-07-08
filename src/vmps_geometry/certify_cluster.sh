@@ -29,6 +29,10 @@
 #                 bandwidth (secs); POLISH_TIME=0 skips polishing     (1800)
 #   CERT          path to bandwidth_certifier.py       (./bandwidth_certifier.py)
 #   PYTHON        python interpreter                   (python3)
+#   PLAN_ONLY     1 = print the campaign plan and exit without running  (0)
+#   CONFIRM       1 = after the plan, ask for keyboard y/N confirmation
+#                 (interactive terminals only; the launchers set this)   (0)
+#   YES           1 = skip that confirmation prompt (auto-accept)        (0)
 #   MODE          campaign type: plain | ss            (plain)
 #   BLOCK         supersite size for MODE=ss           (2)
 #   MIN_INTRA     (ss mode) require >= N edges hidden inside supersites.
@@ -145,38 +149,50 @@ print(st["unsat"].get(sys.argv[2], "none"))
 PYEOF
 }
 
-# --------- campaign plan: the phases that will run and their time budgets.
-# PLAN_ONLY=1 prints the plan and exits without doing any work (the launchers
-# call it that way to show the plan on the terminal before backgrounding).
-_budget() { [[ "${1%.*}" -gt 0 ]] && echo "${1}s" || echo "skipped"; }
+# --------- campaign plan: the phases that will run, their time budgets (in
+# seconds and hours) and the CPUs each uses. PLAN_ONLY=1 prints it and exits
+# without doing any work; CONFIRM=1 additionally asks for keyboard confirmation
+# (the launchers use both to show the plan and confirm before backgrounding).
+_dur() { awk -v s="${1%.*}" 'BEGIN{printf "%ds (%.2fh)", s, s/3600}'; }
+_budget() { [[ "${1%.*}" -gt 0 ]] && _dur "$1" || echo "skipped"; }
 print_plan() {
+  local ladder_cpus=$(( 2 * JOBS_PER_SIDE * WORKERS ))
   log "================  campaign plan  ================"
   if [[ "$MODE" == "ss" ]]; then
     log "cluster $CLUSTER : supersite bandwidth, block $BLOCK, symmetry $SYMMETRY"
     log "  hidden-bond constraints : ${SS_TAG:-none (unconstrained)}"
     log "  state dir               : $STATE_DIR"
     if [[ -n "$LATTICE" && "$BLOCK" -eq 2 ]]; then
-      log "  phase 0  translation-blocking seed  : ${SEED_HEUR}s heuristic + ${SEED_OPT}s CP-SAT per direction"
+      log "  phase 0  translation-blocking seed  : $(_dur "$SEED_HEUR") heuristic + $(_dur "$SEED_OPT") CP-SAT per direction   CPUs: ${PROCS} SA / ${WORKERS} CP-SAT"
     else
       log "  phase 0  translation-blocking seed  : skipped (needs LATTICE and block 2)"
     fi
-    log "  phase 1  heuristic SA upper bound   : ${TIME_HEUR}s  (${PROCS} procs, stall ${STALL}s)"
-    log "  phase 1  CP-SAT decision ladder     : ${TIME_PER_K}s per k-decision  (${WORKERS} workers)"
-    log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")"
-    log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")"
+    log "  phase 1  heuristic SA upper bound   : $(_dur "$TIME_HEUR")  (stall ${STALL}s)   CPUs: ${PROCS}  (parallel SA chains)"
+    log "  phase 1  CP-SAT decision ladder     : $(_dur "$TIME_PER_K") per k-decision   CPUs: ${WORKERS}  (solver threads)"
+    log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
+    log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
   else
     log "cluster $CLUSTER : plain single-site bandwidth, symmetry $SYMMETRY"
     log "  state dir : $STATE_DIR"
-    log "  phase 1  structural bounds (info)    : instant"
-    log "  phase 2  heuristic upper bound (SA)  : ${TIME_HEUR}s  (${PROCS} procs, stall ${STALL}s)"
-    log "  phase 3  CP-SAT optimize pass        : ${TIME_OPT}s  (${WORKERS} workers)"
-    log "  phase 4  decision ladder             : ${TIME_PER_K}s per k-decision, ${JOBS_PER_SIDE} jobs/side, <= ${MAX_ROUNDS} rounds"
-    log "  phase 5  SAT cross-check (if closed) : $(_budget "$SAT_TIME")"
-    log "  phase 6  range polish at final bw    : $(_budget "$POLISH_TIME")"
+    log "  phase 1  structural bounds (info)   : instant   CPUs: 1"
+    log "  phase 2  heuristic upper bound (SA) : $(_dur "$TIME_HEUR")  (stall ${STALL}s)   CPUs: ${PROCS}  (parallel SA chains)"
+    log "  phase 3  CP-SAT optimize pass       : $(_dur "$TIME_OPT")   CPUs: ${WORKERS}  (solver threads)"
+    log "  phase 4  decision ladder            : $(_dur "$TIME_PER_K") per k-decision, <= ${MAX_ROUNDS} rounds   CPUs: up to ${ladder_cpus}  (2 sides x ${JOBS_PER_SIDE} jobs x ${WORKERS} threads)"
+    log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
+    log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
   fi
   log "================================================"
 }
 print_plan
+# optional keyboard confirmation (interactive terminals only); YES=1 skips it
+if [[ "${CONFIRM:-0}" == 1 && "${YES:-0}" != 1 && -t 0 ]]; then
+  printf '%s' "Proceed with this campaign? [y/N] " > /dev/tty
+  read -r _ans < /dev/tty || _ans=""
+  case "$_ans" in
+    [yY]|[yY][eE][sS]) log "confirmed; launching." ;;
+    *) log "aborted by user; nothing launched."; exit 3 ;;
+  esac
+fi
 if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi
 
 # ================================================================ ss mode

@@ -69,10 +69,12 @@ _L=""; _X=""; _Y=""; _Z=""; _T=""
 read -r _MT _REST <<< "$_PARSE"
 if [ "$_MT" = "DIAG" ]; then read -r _L _X _Y _Z <<< "$_REST"
 elif [ "$_MT" = "TILTED" ]; then read -r _L _T <<< "$_REST"; fi
-env "${CENV[@]}" MODE=ss BLOCK="$BLOCK" MIN_INTRA="$MIN_INTRA" INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
-  LATTICE="$_L" NX="$_X" NY="$_Y" NZ="$_Z" TILTED="$_T" \
-  STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTERS[0]}_block${BLOCK}" PLAN_ONLY=1 \
-  ./certify_cluster.sh "${CLUSTERS[0]}"
+if ! env "${CENV[@]}" MODE=ss BLOCK="$BLOCK" MIN_INTRA="$MIN_INTRA" INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
+     LATTICE="$_L" NX="$_X" NY="$_Y" NZ="$_Z" TILTED="$_T" \
+     STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTERS[0]}_block${BLOCK}" PLAN_ONLY=1 CONFIRM=1 \
+     ./certify_cluster.sh "${CLUSTERS[0]}"; then
+  echo "batch not launched."; exit 1
+fi
 
 nohup bash -c '
   DATA_DIR="$1"; BLOCK="$2"; MIN_INTRA="$3"; INTRA_PER_BLOCK="$4"; CTAG="$5"; NENV="$6"; shift 6
