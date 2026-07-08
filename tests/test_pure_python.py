@@ -135,3 +135,48 @@ def test_ss_sa_chain_bignode_intra_per_block_runs():
     vi, bw, lab = bc._ss_sa_chain((n, edges, 2, 7, 1.0, None, 0, 0, True))
     assert vi == bc.ss_viol(lab, edges, 2, 0, True)
     assert sorted(lab) == sorted(list(range(1, n // 2 + 1)) * 2)
+
+
+def test_cut_profile_vectorized_matches_bruteforce():
+    rng = np.random.default_rng(3)
+    n = 12
+    W = rng.random((n, n))
+    W = np.triu(W, 1)
+    W[W < 0.5] = 0.0
+    W = W + W.T
+    pos = rng.permutation(n)
+    m = fo.metrics(W, pos)
+    cuts_bf = []
+    for b in range(n - 1):
+        left = {v for v in range(n) if pos[v] <= b}
+        cuts_bf.append(sum(W[i, j] for i in range(n) for j in range(i + 1, n)
+                           if (i in left) != (j in left)))
+    assert np.allclose(m["cutwidth_max"], max(cuts_bf))
+    iu, ju, w = fo._edge_arrays(W)
+    assert np.allclose(fo._cut_profile(pos, iu, ju, w, n), cuts_bf)
+
+
+def test_sa_order_chain_finds_weighted_path_cutwidth():
+    # weighted path graph: the path order itself is cutwidth-optimal
+    # (cutwidth = max edge weight); SA must find it from a random start.
+    n = 10
+    W = np.zeros((n, n))
+    for i in range(n - 1):
+        W[i, i + 1] = W[i + 1, i] = 1.0 + 0.1 * i
+    p, s, perm = fo._sa_order_chain((W, "cut", 5, 1.5, None))
+    assert sorted(perm) == list(range(n))                 # valid permutation
+    assert abs(p - W.max()) < 1e-9                        # optimum reached
+
+
+def test_anneal_order_never_worse_than_seed():
+    rng = np.random.default_rng(1)
+    n = 16
+    W = rng.random((n, n)); W = np.triu(W, 1); W = W + W.T
+    np.fill_diagonal(W, 0.0)
+    seed_perm = list(range(n))
+    pos0 = np.arange(n)
+    before = fo.objective_value(W, pos0, "cut")
+    perm = fo.anneal_order(W, "cut", 1.0, 1, 0, [seed_perm])  # procs=1 path
+    pos = np.empty(n, dtype=int); pos[np.asarray(perm)] = np.arange(n)
+    assert sorted(perm) == list(range(n))
+    assert fo.objective_value(W, pos, "cut") <= before + 1e-12

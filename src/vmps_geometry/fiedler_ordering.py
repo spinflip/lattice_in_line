@@ -41,15 +41,23 @@ still carries some collective entanglement in the symmetric sector, typically
 small/logarithmic), and the formula assumes SU(2) symmetry and spin-1/2; with
 fields, anisotropy, or higher spin, prefer --weights mi.
 
-Refinement and reporting
-------------------------
---refine runs a windowed local search on top of the Fiedler order, minimizing
-  --objective quad  : sum W_ij d_ij^2   (the Fiedler objective; default)
-  --objective cut   : max over chain cuts of total W crossing  (the proxy for
-                      the worst MPS bond dimension — usually what you want
-                      for DMRG; slightly slower to evaluate)
-The report prints, for the identity, Fiedler, and refined orders: weighted
-cutwidth (max and profile quartiles), sum W*d, sum W*d^2, and max W*d.
+Optimization and reporting
+--------------------------
+Objectives (--objective):
+  quad  : sum W_ij d_ij^2   (the Fiedler objective; default)
+  cut   : max over chain cuts of total W crossing  (the proxy for the worst
+          MPS bond dimension — usually what you want for DMRG)
+--refine runs a windowed local search on top of the Fiedler order.
+--anneal SECS runs a multi-start parallel simulated annealing (--procs chains;
+  swap / segment-reversal / relocation moves) that optimizes the objective
+  DIRECTLY, using the Fiedler order only as one seed among random restarts.
+  Use this when the plain Fiedler order underperforms — typically on dense
+  correlation matrices, where the sea of weak long-range weights dominates
+  the spectral (quadratic) relaxation and washes out the strong bonds:
+      ... --weights concurrence --objective cut --anneal 600
+The report prints, for each order produced: weighted cutwidth (max and
+profile quantiles), sum W*d, sum W*d^2, and max W*d; the best order under
+--objective is the one written out.
 
 MPO note: the bond dimension of the MPO itself counts INTERACTION TERMS
 crossing each cut and is independent of coupling sign and of correlations;
@@ -60,6 +68,9 @@ Usage
 -----
   python fiedler_ordering.py CORR.npy --weights concurrence --refine
   python fiedler_ordering.py corr.txt --weights mi --objective cut --refine
+  # direct SA optimization of the DMRG bond proxy (recommended when the
+  # Fiedler order gives poor DMRG energies):
+  python fiedler_ordering.py CORR.npy --objective cut --anneal 600 --out order.txt
   # results JSON: extract correlations of the lowest-energy run automatically
   python fiedler_ordering.py results.json --refine --out order.txt
 
@@ -75,6 +86,7 @@ Requires: numpy.
 import argparse
 import json
 import math
+import os
 import random
 import sys
 
@@ -204,18 +216,31 @@ def fiedler_order(W):
 # ----------------------------------------------------------------------
 # objectives (pos[v] = 0-based position of site v)
 
-def metrics(W, pos):
-    n = W.shape[0]
-    iu, ju = np.triu_indices(n, 1)
+def _edge_arrays(W):
+    """(iu, ju, w) of the nonzero upper-triangle weights."""
+    iu, ju = np.triu_indices(W.shape[0], 1)
     w = W[iu, ju]
     nz = w > 0
-    iu, ju, w = iu[nz], ju[nz], w[nz]
-    d = np.abs(pos[iu] - pos[ju]).astype(float)
-    cuts = np.zeros(n - 1)
+    return iu[nz], ju[nz], w[nz]
+
+
+def _cut_profile(pos, iu, ju, w, n):
+    """Weight crossing each of the n-1 chain bonds, vectorized (O(E + n)):
+    an edge spanning positions [lo, hi] crosses bonds lo..hi-1; accumulate as
+    interval increments and prefix-sum."""
     lo = np.minimum(pos[iu], pos[ju])
     hi = np.maximum(pos[iu], pos[ju])
-    for a, b, wt in zip(lo, hi, w):
-        cuts[a:b] += wt
+    diff = np.zeros(n, dtype=float)
+    np.add.at(diff, lo, w)
+    np.add.at(diff, hi, -w)
+    return np.cumsum(diff)[:n - 1]
+
+
+def metrics(W, pos):
+    n = W.shape[0]
+    iu, ju, w = _edge_arrays(W)
+    d = np.abs(pos[iu] - pos[ju]).astype(float)
+    cuts = _cut_profile(pos, iu, ju, w, n)
     return {
         "cutwidth_max": float(cuts.max()),
         "cut_profile_q": [float(np.quantile(cuts, q)) for q in (0.5, 0.9, 1.0)],
@@ -289,6 +314,116 @@ def refine(W, order, objective, time_budget, seed):
 
 
 # ----------------------------------------------------------------------
+# annealed ordering (--anneal): multi-start SA that OPTIMIZES the objective
+# directly, using Fiedler only as one seed. This is the tool to reach for when
+# the spectral order is poor -- e.g. a dense correlation matrix whose sea of
+# weak long-range weights dominates the quadratic relaxation.
+
+def _sa_cost(pos, iu, ju, w, n, objective):
+    """(primary, secondary): for 'cut' the max bond weight with the total
+    range sum_wd as a tie-break gradient (the max alone is a flat landscape);
+    for 'quad' the smooth sum_wd2 alone."""
+    d = np.abs(pos[iu] - pos[ju]).astype(float)
+    if objective == "quad":
+        return float((w * d * d).sum()), 0.0
+    cuts = _cut_profile(pos, iu, ju, w, n)
+    return float(cuts.max()), float((w * d).sum())
+
+
+def _sa_order_chain(payload):
+    """One independent annealing chain over permutations (picklable for
+    mp.Pool). Moves: pair swap, segment reversal (2-opt), site relocation.
+    Metropolis anneals on the LEADING worsened cost term only, relative-scaled
+    and exp-clamped (cf. the certifier's supersite SA)."""
+    import time as _t
+    W, objective, seed, t_budget, init_perm = payload
+    rng = random.Random(seed)
+    n = W.shape[0]
+    iu, ju, w = _edge_arrays(W)
+    if init_perm is not None:
+        perm = np.asarray(init_perm, dtype=int).copy()
+    else:
+        perm = np.arange(n)
+        rng.shuffle(perm)
+    pos = np.empty(n, dtype=int)
+    pos[perm] = np.arange(n)
+    p1, s1 = _sa_cost(pos, iu, ju, w, n, objective)
+    bestperm, bp, bs = perm.copy(), p1, s1
+    T = 0.05                              # relative-delta temperature
+    t_end = _t.time() + t_budget
+    while _t.time() < t_end:
+        for _ in range(200):
+            new = perm.copy()
+            r = rng.random()
+            if r < 0.4:                                    # pair swap
+                a, b = rng.randrange(n), rng.randrange(n)
+                new[a], new[b] = new[b], new[a]
+            elif r < 0.7:                                  # segment reversal
+                a, b = sorted((rng.randrange(n), rng.randrange(n)))
+                new[a:b + 1] = new[a:b + 1][::-1]
+            else:                                          # site relocation
+                a, b = rng.randrange(n), rng.randrange(n)
+                site = new[a]
+                new = np.delete(new, a)
+                new = np.insert(new, b, site)
+            pos[new] = np.arange(n)
+            p2, s2 = _sa_cost(pos, iu, ju, w, n, objective)
+            if (p2, s2) <= (p1, s1):
+                accept = True
+            else:
+                if p2 != p1:
+                    delta = (p2 - p1) / max(abs(p1), 1e-12)
+                else:
+                    delta = 0.1 * (s2 - s1) / max(abs(s1), 1e-12)
+                accept = delta / T < 700 and rng.random() < math.exp(-delta / T)
+            if accept:
+                perm, p1, s1 = new, p2, s2
+                if (p1, s1) < (bp, bs):
+                    bestperm, bp, bs = perm.copy(), p1, s1
+        T = max(1e-4, T * 0.97)
+    return bp, bs, [int(v) for v in bestperm]
+
+
+def anneal_order(W, objective, time_budget, procs, seed, seed_perms):
+    """Parallel multi-start SA. seed_perms: initial permutations (e.g. the
+    Fiedler order); half the chains restart from the incumbent, half randomly.
+    Returns the best perm (perm[pos] = site)."""
+    import time as _t
+    n = W.shape[0]
+    iu, ju, w = _edge_arrays(W)
+
+    def cost_of(perm):
+        pos = np.empty(n, dtype=int)
+        pos[np.asarray(perm)] = np.arange(n)
+        return _sa_cost(pos, iu, ju, w, n, objective)
+
+    best_perm = min(seed_perms, key=cost_of)
+    bp, bs = cost_of(best_perm)
+    print(f"[anneal] seed {objective}: {bp:.6g}", file=sys.stderr)
+    if procs <= 1:
+        p, s, perm = _sa_order_chain((W, objective, seed, time_budget, best_perm))
+        return perm if (p, s) < (bp, bs) else best_perm
+    import multiprocessing as mp
+    t_end = _t.time() + time_budget
+    rnd = 0
+    with mp.Pool(procs) as pool:
+        while True:
+            dur = min(20.0, t_end - _t.time())
+            if dur < 1:
+                break
+            jobs = [(W, objective, seed + rnd * procs + p, dur,
+                     best_perm if p % 2 == 0 else None)
+                    for p in range(procs)]
+            rnd += 1
+            for p, s, perm in pool.imap_unordered(_sa_order_chain, jobs):
+                if (p, s) < (bp, bs):
+                    bp, bs, best_perm = p, s, perm
+                    print(f"[anneal] new best {objective}: {bp:.6g}",
+                          file=sys.stderr)
+    return best_perm
+
+
+# ----------------------------------------------------------------------
 
 def report(tag, W, pos):
     m = metrics(W, pos)
@@ -316,9 +451,17 @@ def main():
     ap.add_argument("--refine", action="store_true",
                     help="local search on top of the Fiedler order")
     ap.add_argument("--objective", choices=["quad", "cut"], default="quad",
-                    help="refinement objective: quad = sum w*d^2 (Fiedler "
+                    help="optimization objective: quad = sum w*d^2 (Fiedler "
                          "objective), cut = weighted cutwidth (DMRG bond proxy)")
     ap.add_argument("--refine-time", type=float, default=30.0)
+    ap.add_argument("--anneal", type=float, default=0.0, metavar="SECS",
+                    help="multi-start parallel SA that optimizes --objective "
+                         "directly, seeded by the Fiedler order plus random "
+                         "restarts. The recommended optimizer when the plain "
+                         "Fiedler order is poor (e.g. dense correlation "
+                         "matrices); combine with --objective cut for DMRG.")
+    ap.add_argument("--procs", type=int, default=os.cpu_count(),
+                    help="parallel SA chains for --anneal")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -342,13 +485,22 @@ def main():
           f"nonzero weights = {int((np.triu(W, 1) > 0).sum())}")
     report("identity", W, np.arange(n))
     report("fiedler", W, pos_f)
-    pos_best = pos_f
+    candidates = [pos_f]
     if args.refine:
         pos_r = refine(W, order, args.objective, args.refine_time, args.seed)
         report(f"refined({args.objective})", W, pos_r)
-        if objective_value(W, pos_r, args.objective) \
-                <= objective_value(W, pos_f, args.objective):
-            pos_best = pos_r
+        candidates.append(pos_r)
+    if args.anneal > 0:
+        # seed the SA with every order we have so far (as perms: perm[pos]=site)
+        seed_perms = [list(np.argsort(pos)) for pos in candidates]
+        perm_a = anneal_order(W, args.objective, args.anneal, args.procs,
+                              args.seed, seed_perms)
+        pos_a = np.empty(n, dtype=int)
+        pos_a[np.asarray(perm_a)] = np.arange(n)
+        report(f"anneal({args.objective})", W, pos_a)
+        candidates.append(pos_a)
+    pos_best = min(candidates,
+                   key=lambda p: objective_value(W, p, args.objective))
 
     order_map = "{" + ", ".join(f"{v}: {int(pos_best[v])}" for v in range(n)) + "}"
     print("\nordering map {original_site: position}:")
