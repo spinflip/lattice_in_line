@@ -1,16 +1,17 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
-# Hidden-bond constraints (optional; see certify_cluster.sh for semantics):
-#   INTRA_PER_BLOCK=1 ./certify_large_supersite.sh CLUSTER   # every supersite bonded
-#   MIN_INTRA=N       ./certify_large_supersite.sh CLUSTER   # >= N hidden edges
-# Constrained runs use their own state files/artifacts (tagged _ie<N>/_ipb) and
-# their own log; the certificate is conditional on the constraint.
+# Hidden-bond constraint: by DEFAULT every supersite must contain an interaction
+# edge (INTRA_PER_BLOCK=1; for q=2 the blocking is a perfect matching along
+# bonds) -- absorbing bonds into supersites is the point of the method. State/
+# artifacts are tagged _ipb and the certificate is conditional on it. Override:
+#   INTRA_PER_BLOCK=0 ./certify_large_supersite.sh CLUSTER              # unconstrained
+#   INTRA_PER_BLOCK=0 MIN_INTRA=N ./certify_large_supersite.sh CLUSTER  # >= N hidden edges instead
 
 CLUSTER="$1"
 BLOCK="${2:-2}"
 MIN_INTRA="${MIN_INTRA:-0}"
-INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-1}"
 CTAG=""
 [ "$MIN_INTRA" -gt 0 ] && CTAG+="_ie${MIN_INTRA}"
 [ "$INTRA_PER_BLOCK" -eq 1 ] && CTAG+="_ipb"

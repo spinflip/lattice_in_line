@@ -34,9 +34,10 @@
 #   MIN_INTRA     (ss mode) require >= N edges hidden inside supersites.
 #                 Separate state/artifacts tagged _ie<N>; the certificate is
 #                 conditional on the constraint.                          (0)
-#   INTRA_PER_BLOCK (ss mode) 1 = require EVERY supersite to contain at least
-#                 one edge (q=2: the blocking is a perfect matching along
-#                 bonds). Separate state/artifacts tagged _ipb.           (0)
+#   INTRA_PER_BLOCK (ss mode) require EVERY supersite to contain an interaction
+#                 edge (q=2: the blocking is a perfect matching along bonds).
+#                 ON by default -- the point of supersites is to hide bonds.
+#                 State/artifacts tagged _ipb; set =0 for unconstrained.   (1)
 #   LATTICE       (ss mode) generator lattice name; if set, an automatic
 #                 translation-blocking seed (ss-seed) runs FIRST to provide a
 #                 structured early upper bound. Also set NX/NY/NZ, or
@@ -74,7 +75,7 @@ MAX_ROUNDS="${MAX_ROUNDS:-50}"
 MODE="${MODE:-plain}"
 BLOCK="${BLOCK:-2}"
 MIN_INTRA="${MIN_INTRA:-0}"
-INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-1}"
 # hidden-bond constraints: flag set for the ss-* calls, and a state/artifact
 # tag matching the certifier's ss_state naming (_ie<N> before _ipb)
 SS_FLAGS=()

@@ -7,11 +7,12 @@
 #   ./certify_small_supersite.sh CLUSTER         # one cluster, block 2
 #   ./certify_small_supersite.sh CLUSTER BLOCK   # one cluster, given block size
 #
-# Hidden-bond constraints (optional; see certify_cluster.sh for semantics):
-#   INTRA_PER_BLOCK=1 ./certify_small_supersite.sh CLUSTER   # every supersite bonded
-#   MIN_INTRA=N       ./certify_small_supersite.sh CLUSTER   # >= N hidden edges
-# Constrained runs use their own state files/artifacts (tagged _ie<N>/_ipb) and
-# their own logs; the certificate is conditional on the constraint.
+# Hidden-bond constraint: by DEFAULT every supersite must contain an interaction
+# edge (INTRA_PER_BLOCK=1; for q=2 the blocking is a perfect matching along
+# bonds) -- absorbing bonds into supersites is the point of the method. State/
+# artifacts are tagged _ipb and the certificate is conditional on it. Override:
+#   INTRA_PER_BLOCK=0 ./certify_small_supersite.sh CLUSTER              # unconstrained
+#   INTRA_PER_BLOCK=0 MIN_INTRA=N ./certify_small_supersite.sh CLUSTER  # >= N hidden edges instead
 #
 # Thresholds: between certify_small.sh (light) and certify_large.sh (heavy).
 # Supersite decision problems are harder per solve than the plain ones, so we
@@ -27,7 +28,7 @@ cd "$(dirname "$0")"
 CLUSTER="${1:-}"
 BLOCK="${2:-2}"
 MIN_INTRA="${MIN_INTRA:-0}"
-INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-1}"
 CTAG=""
 [[ "$MIN_INTRA" -gt 0 ]] && CTAG+="_ie${MIN_INTRA}"
 [[ "$INTRA_PER_BLOCK" -eq 1 ]] && CTAG+="_ipb"
