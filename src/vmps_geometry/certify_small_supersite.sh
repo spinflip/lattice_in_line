@@ -7,6 +7,10 @@
 #   ./certify_small_supersite.sh CLUSTER         # one cluster, block 2
 #   ./certify_small_supersite.sh CLUSTER BLOCK   # one cluster, given block size
 #
+# Hidden-bond constraints pass through as env vars (see certify_cluster.sh):
+#   INTRA_PER_BLOCK=1 ./certify_small_supersite.sh CLUSTER   # every supersite bonded
+#   MIN_INTRA=N       ./certify_small_supersite.sh CLUSTER   # >= N hidden edges
+#
 # Thresholds: between certify_small.sh (light) and certify_large.sh (heavy).
 # Supersite decision problems are harder per solve than the plain ones, so we
 # give more time per k and more SA effort than the plain small batch, but stay

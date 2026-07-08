@@ -1,6 +1,10 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
+# Hidden-bond constraints pass through as env vars (see certify_cluster.sh):
+#   INTRA_PER_BLOCK=1 ./certify_large_supersite.sh CLUSTER   # every supersite bonded
+#   MIN_INTRA=N       ./certify_large_supersite.sh CLUSTER   # >= N hidden edges
+
 CLUSTER="$1"
 BLOCK="${2:-2}"
 

@@ -30,6 +30,12 @@
 #   PYTHON        python interpreter                   (python3)
 #   MODE          campaign type: plain | ss            (plain)
 #   BLOCK         supersite size for MODE=ss           (2)
+#   MIN_INTRA     (ss mode) require >= N edges hidden inside supersites.
+#                 Separate state/artifacts tagged _ie<N>; the certificate is
+#                 conditional on the constraint.                          (0)
+#   INTRA_PER_BLOCK (ss mode) 1 = require EVERY supersite to contain at least
+#                 one edge (q=2: the blocking is a perfect matching along
+#                 bonds). Separate state/artifacts tagged _ipb.           (0)
 #   LATTICE       (ss mode) generator lattice name; if set, an automatic
 #                 translation-blocking seed (ss-seed) runs FIRST to provide a
 #                 structured early upper bound. Also set NX/NY/NZ, or
@@ -65,6 +71,18 @@ FINAL_SYM="${FINAL_SYM:-reversal}"
 MAX_ROUNDS="${MAX_ROUNDS:-50}"
 MODE="${MODE:-plain}"
 BLOCK="${BLOCK:-2}"
+MIN_INTRA="${MIN_INTRA:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+# hidden-bond constraints: flag set for the ss-* calls, and a state/artifact
+# tag matching the certifier's ss_state naming (_ie<N> before _ipb)
+SS_FLAGS=()
+SS_TAG=""
+if [[ "$MIN_INTRA" -gt 0 ]]; then
+  SS_FLAGS+=(--min-intra-edges "$MIN_INTRA"); SS_TAG+="_ie${MIN_INTRA}"
+fi
+if [[ "$INTRA_PER_BLOCK" -eq 1 ]]; then
+  SS_FLAGS+=(--intra-per-block); SS_TAG+="_ipb"
+fi
 LATTICE="${LATTICE:-}"
 NX="${NX:-}"; NY="${NY:-}"; NZ="${NZ:-}"
 SUPERCELL="${SUPERCELL:-}"; TILTED="${TILTED:-}"
@@ -96,7 +114,7 @@ if [[ "$ORBITS" -ne 1 && "$SYMMETRY" == "orbit" ]]; then
 fi
 
 if [[ "$MODE" == "ss" ]]; then
-  STATE_JSON="$STATE_DIR/${CLUSTER}__ss${BLOCK}.json"
+  STATE_JSON="$STATE_DIR/${CLUSTER}__ss${BLOCK}${SS_TAG}.json"
 else
   STATE_JSON="$STATE_DIR/$CLUSTER.json"
 fi
@@ -127,6 +145,7 @@ PYEOF
 # ================================================================ ss mode
 if [[ "$MODE" == "ss" ]]; then
   log "supersite campaign: block size $BLOCK"
+  [[ -n "$SS_TAG" ]] && log "hidden-bond constraints active (state tag ${SS_TAG}): certificates are conditional on them"
   # phase 0: automatic translation-blocking seed (only with lattice params,
   # only for block size 2 — the translation involution is a q=2 pairing).
   if [[ -n "$LATTICE" && "$BLOCK" -eq 2 ]]; then
@@ -141,11 +160,13 @@ if [[ "$MODE" == "ss" ]]; then
     else
       SEED_ARGS+=(--Nx "$NX" --Ny "$NY" --Nz "$NZ")
     fi
-    C ss-seed "${SEED_ARGS[@]}" || log "translation seed failed (non-fatal)"
+    C ss-seed "${SEED_ARGS[@]}" ${SS_FLAGS[@]+"${SS_FLAGS[@]}"} \
+      || log "translation seed failed (non-fatal)"
   fi
   C ss-run --block "$BLOCK" --heur-time "$TIME_HEUR" \
     --time-per-k "$TIME_PER_K" --workers "$WORKERS" --procs "$PROCS" \
-    --stall "$STALL" --seed "$SEED" --symmetry "$SYMMETRY"
+    --stall "$STALL" --seed "$SEED" --symmetry "$SYMMETRY" \
+    ${SS_FLAGS[@]+"${SS_FLAGS[@]}"}
   read -r LB UB < <(window)
   log "supersite window: [$LB, $UB]"
   if [[ "$UB" -lt 0 ]]; then
@@ -169,12 +190,13 @@ if [[ "$MODE" == "ss" ]]; then
     elif [[ "${SAT_TIME%.*}" -le 0 ]]; then
       log "SAT cross-check skipped (SAT_TIME=0); certification stands at cpsat"
     else
-      CNF="$STATE_DIR/${CLUSTER}_ss${BLOCK}_k${KDEC}.cnf"
-      DRAT="$STATE_DIR/${CLUSTER}_ss${BLOCK}_k${KDEC}.drat"
+      CNF="$STATE_DIR/${CLUSTER}_ss${BLOCK}${SS_TAG}_k${KDEC}.cnf"
+      DRAT="$STATE_DIR/${CLUSTER}_ss${BLOCK}${SS_TAG}_k${KDEC}.drat"
       C ss-verify --block "$BLOCK" --k "$KDEC" --time "$SAT_TIME" \
         --symmetry "$FINAL_SYM" --cnf-out "$CNF" --proof-out "$DRAT" \
-        > "$STATE_DIR/ss_verify_k${KDEC}.log" 2>&1 || true
-      if grep -q 'recorded (xsat)' "$STATE_DIR/ss_verify_k${KDEC}.log"; then
+        ${SS_FLAGS[@]+"${SS_FLAGS[@]}"} \
+        > "$STATE_DIR/ss_verify${SS_TAG}_k${KDEC}.log" 2>&1 || true
+      if grep -q 'recorded (xsat)' "$STATE_DIR/ss_verify${SS_TAG}_k${KDEC}.log"; then
         log "cross-check passed (xsat); DRAT archived at $DRAT"
       else
         log "cross-check inconclusive; certification stands at cpsat level"
@@ -186,17 +208,17 @@ if [[ "$MODE" == "ss" ]]; then
   if [[ "${POLISH_TIME%.*}" -gt 0 ]]; then
     log "phase 6: polishing total interaction range at bandwidth $UB (${POLISH_TIME}s)"
     C polish --block "$BLOCK" --target "$UB" --time "$POLISH_TIME" \
-      --workers "$WORKERS"
+      --workers "$WORKERS" ${SS_FLAGS[@]+"${SS_FLAGS[@]}"}
   fi
-  C ss-export --block "$BLOCK" \
-    > "$STATE_DIR/${CLUSTER}_ss${BLOCK}_assignment.txt"
+  C ss-export --block "$BLOCK" ${SS_FLAGS[@]+"${SS_FLAGS[@]}"} \
+    > "$STATE_DIR/${CLUSTER}_ss${BLOCK}${SS_TAG}_assignment.txt"
   if [[ "$CLOSED" -eq 1 ]]; then
     log "result: supersite bandwidth k* = $UB (CERTIFIED); assignment in"
   else
     log "result: best-known supersite bandwidth $UB (lower bound $LB, NOT certified);"
     log "  assignment in"
   fi
-  log "  $STATE_DIR/${CLUSTER}_ss${BLOCK}_assignment.txt"
+  log "  $STATE_DIR/${CLUSTER}_ss${BLOCK}${SS_TAG}_assignment.txt"
   exit 0
 fi
 

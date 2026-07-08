@@ -849,12 +849,13 @@ def cmd_polish(args):
     exactly q sites). The improved labeling is recorded into the state."""
     n, edges = get_graph(args)
     q = getattr(args, "block", 1) or 1
+    min_intra = per_block = 0
     if q > 1:
         if n % q:
             sys.exit(f"--block {q} does not divide n={n}")
         m = n // q
-        st = State(args.state_dir, f"{args.cluster or 'edgefile'}__ss{q}",
-                   n, edges, mult=q)
+        min_intra, per_block = ss_constraints(args, edges)
+        st = ss_state(args, n, edges)
     else:
         m = n
         st = State(args.state_dir, args.cluster or "edgefile", n, edges)
@@ -865,6 +866,7 @@ def cmd_polish(args):
         sys.exit("no bandwidth known yet; run a campaign first or pass --target")
     from ortools.sat.python import cp_model
     model = cp_model.CpModel()
+    Bmat = {}
     if q == 1:
         lab = [model.NewIntVar(1, n, f"l{v}") for v in range(n)]
         model.AddAllDifferent(lab)
@@ -878,14 +880,36 @@ def cmd_polish(args):
                 model.Add(R[v] == r).OnlyEnforceIf(b)
                 model.Add(R[v] != r).OnlyEnforceIf(b.Not())
                 bvars.append(b)
+                Bmat[v, r] = b
             model.Add(sum(bvars) == q)
         lab = R
     dvars = []
+    d_of = {}
     for u, v in edges:
         d = model.NewIntVar(0, B, f"d{u}_{v}")       # hard bandwidth cap
         model.AddAbsEquality(d, lab[u] - lab[v])
         dvars.append(d)
+        d_of[u, v] = d
     model.Minimize(sum(dvars))                        # total interaction range
+    # hidden-bond constraints (ss states tagged _ie<N>/_ipb): polishing must
+    # not un-hide bonds the certified solution was required to hide
+    if min_intra:
+        bs = []
+        for (u, v), d in d_of.items():
+            b = model.NewBoolVar(f"in{u}_{v}")
+            model.Add(d == 0).OnlyEnforceIf(b)
+            model.Add(d != 0).OnlyEnforceIf(b.Not())
+            bs.append(b)
+        model.Add(sum(bs) >= min_intra)
+    if per_block:
+        for r in range(1, m + 1):
+            lits = []
+            for u, v in edges:
+                e = model.NewBoolVar(f"e{u}_{v}_{r}")
+                model.AddImplication(e, Bmat[u, r])
+                model.AddImplication(e, Bmat[v, r])
+                lits.append(e)
+            model.AddBoolOr(lits)
     # symmetry: reversal of the chain (range is reversal-invariant -> sound)
     adj = adjacency(n, edges)
     w = max(range(n), key=lambda x: len(adj[x]))
@@ -3040,6 +3064,12 @@ def main():
     p.add_argument("--block", type=int, default=1,
                    help="supersite size (1 = plain permutation); polishes the "
                         "matching ss state when >1")
+    p.add_argument("--min-intra-edges", type=int, default=0,
+                   help="ss only: keep >= N edges hidden inside supersites "
+                        "(matches the _ie<N> state)")
+    p.add_argument("--intra-per-block", action="store_true",
+                   help="ss only: keep every supersite internally bonded "
+                        "(matches the _ipb state)")
     p.add_argument("--target", type=int, default=None,
                    help="bandwidth to hold (default: current certified UB)")
     p.add_argument("--time", type=float, default=3600)
