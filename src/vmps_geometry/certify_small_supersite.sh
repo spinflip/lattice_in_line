@@ -111,5 +111,5 @@ PY
   >> "$DATA_DIR/certify_small_supersite${CTAG}.log" 2>&1 &
 
 echo "launched supersite batch for ${#CLUSTERS[@]} cluster(s) (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"
-echo "  batch log:    $DATA_DIR/certify_small_supersite${CTAG}.log"
-echo "  per-cluster:  $DATA_DIR/certify_ss_<cluster>_block${BLOCK}${CTAG}.log"
+for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_ss_${c}_block${BLOCK}${CTAG}.log"; done
+echo "  (launcher wrapper log: $DATA_DIR/certify_small_supersite${CTAG}.log)"

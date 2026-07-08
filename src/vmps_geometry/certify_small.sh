@@ -40,5 +40,5 @@ nohup bash -c '
 ' bash "$DATA_DIR" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
 
 echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"
-echo "  batch log:    $DATA_DIR/certify_small.log"
-echo "  per-cluster:  $DATA_DIR/certify_<cluster>.log"
+for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_$c.log"; done
+echo "  (launcher wrapper log: $DATA_DIR/certify_small.log)"
