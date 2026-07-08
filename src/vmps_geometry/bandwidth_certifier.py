@@ -2110,6 +2110,17 @@ def ss_decode(n, q, model_lits):
     return lab
 
 
+def _ss_accept_delta(v2, m2, c2, vi, mx, c):
+    """SA acceptance cost delta for a supersite move that WORSENED the
+    lexicographic objective (violation, then max distance, then sum). Anneal on
+    the leading worse term only: a large bandwidth gain must not buy a violation
+    increase (violation-first), and folding the terms into one signed sum can
+    make -delta/T large-positive and overflow math.exp. Returns delta >= 0."""
+    if v2 != vi:
+        return (v2 - vi) * 8.0          # violation changed -> it dominates
+    return (m2 - mx) * 4.0 + (c2 - c) * 0.001
+
+
 def _ss_sa_chain(payload):
     """One independent supersite annealing chain (picklable for mp.Pool).
     Cost is lexicographic (constraint violation, max distance, sum): with
@@ -2153,9 +2164,12 @@ def _ss_sa_chain(payload):
                 continue                       # swap across blocks only
             lab[a], lab[b] = lab[b], lab[a]
             v2, m2, c2 = cost(lab)
-            if (v2, m2, c2) <= (vi, mx, c) or \
-               rng.random() < math.exp(-((v2 - vi) * 8 + (m2 - mx) * 4
-                                         + (c2 - c) * 0.001) / T):
+            if (v2, m2, c2) <= (vi, mx, c):
+                accept = True
+            else:
+                delta = _ss_accept_delta(v2, m2, c2, vi, mx, c)
+                accept = delta <= 0 or rng.random() < math.exp(-delta / T)
+            if accept:
                 vi, mx, c = v2, m2, c2
                 if (vi, mx, c) < (bv, bm, bc):
                     best, bv, bm, bc = lab[:], vi, mx, c

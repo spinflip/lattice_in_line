@@ -112,3 +112,26 @@ def test_build_cnf_ss_hidden_bond_encodings():
     assert all(abs(x) <= con_v for cl in con_c for x in cl)
     # every clause of the coverage constraint is non-empty
     assert all(cl for cl in con_c)
+
+
+def test_ss_accept_delta_never_overflows_exp():
+    import math
+    # The bug: a swap that WORSENS the violation (v2>vi) but greatly improves
+    # bandwidth (m2<<mx) must anneal on the violation term (delta>0), not the
+    # large-negative weighted sum that overflowed math.exp at small T.
+    d = bc._ss_accept_delta(2, 5, 10, 1, 60, 5000)   # v2>vi, m2<<mx, c2>c
+    assert d > 0
+    math.exp(-d / 0.05)                              # must NOT raise OverflowError
+    # unchanged-violation path keeps the original weighted (max, sum) form
+    assert bc._ss_accept_delta(0, 5, 100, 0, 4, 90) == (5 - 4) * 4.0 + (100 - 90) * 0.001
+
+
+def test_ss_sa_chain_bignode_intra_per_block_runs():
+    # a 60-node cycle, constrained: exercises the constrained chain at low T on
+    # a graph with large bandwidth (the regime that used to overflow); must
+    # finish and report a real violation, without raising.
+    n = 60
+    edges = [(i, (i + 1) % n) for i in range(n)]
+    vi, bw, lab = bc._ss_sa_chain((n, edges, 2, 7, 1.0, None, 0, 0, True))
+    assert vi == bc.ss_viol(lab, edges, 2, 0, True)
+    assert sorted(lab) == sorted(list(range(1, n // 2 + 1)) * 2)
