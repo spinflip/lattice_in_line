@@ -7,9 +7,11 @@
 #   ./certify_small_supersite.sh CLUSTER         # one cluster, block 2
 #   ./certify_small_supersite.sh CLUSTER BLOCK   # one cluster, given block size
 #
-# Hidden-bond constraints pass through as env vars (see certify_cluster.sh):
+# Hidden-bond constraints (optional; see certify_cluster.sh for semantics):
 #   INTRA_PER_BLOCK=1 ./certify_small_supersite.sh CLUSTER   # every supersite bonded
 #   MIN_INTRA=N       ./certify_small_supersite.sh CLUSTER   # >= N hidden edges
+# Constrained runs use their own state files/artifacts (tagged _ie<N>/_ipb) and
+# their own logs; the certificate is conditional on the constraint.
 #
 # Thresholds: between certify_small.sh (light) and certify_large.sh (heavy).
 # Supersite decision problems are harder per solve than the plain ones, so we
@@ -24,6 +26,11 @@ cd "$(dirname "$0")"
 
 CLUSTER="${1:-}"
 BLOCK="${2:-2}"
+MIN_INTRA="${MIN_INTRA:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+CTAG=""
+[[ "$MIN_INTRA" -gt 0 ]] && CTAG+="_ie${MIN_INTRA}"
+[[ "$INTRA_PER_BLOCK" -eq 1 ]] && CTAG+="_ipb"
 
 DEFAULT_CLUSTERS=(
   icosa cubocta C12 C20 C24 C26 C28 C30 C36 C40 C60
@@ -43,7 +50,7 @@ mkdir -p "$DATA_DIR"
 
 nohup bash -c '
   DATA_DIR="$HOME/vmps_geometry_data"
-  BLOCK="$1"; shift
+  BLOCK="$1"; MIN_INTRA="$2"; INTRA_PER_BLOCK="$3"; CTAG="$4"; shift 4
 
   parse_cluster() {
     python3 - "$1" <<"PY"
@@ -83,6 +90,8 @@ PY
     TILTED="$TILTED" \
     MODE=ss \
     BLOCK="$BLOCK" \
+    MIN_INTRA="$MIN_INTRA" \
+    INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
     STATE_DIR="$DATA_DIR/bw_run_ss_${c}_block${BLOCK}" \
     TIME_HEUR=3600 \
     STALL=600 \
@@ -95,6 +104,7 @@ PY
     JOBS_PER_SIDE=2 \
     SEED=1 \
       ./certify_cluster.sh "$c" \
-      > "$DATA_DIR/certify_ss_${c}_block${BLOCK}.log" 2>&1
+      > "$DATA_DIR/certify_ss_${c}_block${BLOCK}${CTAG}.log" 2>&1
   done
-' bash "$BLOCK" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small_supersite.log" 2>&1 &
+' bash "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${CLUSTERS[@]}" \
+  >> "$DATA_DIR/certify_small_supersite${CTAG}.log" 2>&1 &

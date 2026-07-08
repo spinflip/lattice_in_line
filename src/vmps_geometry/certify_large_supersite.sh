@@ -1,12 +1,19 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
-# Hidden-bond constraints pass through as env vars (see certify_cluster.sh):
+# Hidden-bond constraints (optional; see certify_cluster.sh for semantics):
 #   INTRA_PER_BLOCK=1 ./certify_large_supersite.sh CLUSTER   # every supersite bonded
 #   MIN_INTRA=N       ./certify_large_supersite.sh CLUSTER   # >= N hidden edges
+# Constrained runs use their own state files/artifacts (tagged _ie<N>/_ipb) and
+# their own log; the certificate is conditional on the constraint.
 
 CLUSTER="$1"
 BLOCK="${2:-2}"
+MIN_INTRA="${MIN_INTRA:-0}"
+INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-0}"
+CTAG=""
+[ "$MIN_INTRA" -gt 0 ] && CTAG+="_ie${MIN_INTRA}"
+[ "$INTRA_PER_BLOCK" -eq 1 ] && CTAG+="_ipb"
 
 if [ -z "$CLUSTER" ]; then
   echo "Usage: $0 <cluster> [block]" >&2
@@ -60,6 +67,8 @@ TILTED="$TILTED" \
 SEED=1 \
 MODE=ss \
 BLOCK="$BLOCK" \
+MIN_INTRA="$MIN_INTRA" \
+INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
 STATE_DIR="../../vmps_geometry_data_test/bw_run_ss_${CLUSTER}_block${BLOCK}" \
 TIME_HEUR=3600 \
 TIME_PER_K=43200 \
@@ -68,4 +77,7 @@ PROCS=60 \
 JOBS_PER_SIDE=4 \
 SAT_TIME=0 \
 POLISH_TIME=1800 \
-nohup ./certify_cluster.sh "$CLUSTER" >> "../../vmps_geometry_data_test/certify_supersite_${CLUSTER}_block${BLOCK}.log" 2>&1 &
+nohup ./certify_cluster.sh "$CLUSTER" >> "../../vmps_geometry_data_test/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log" 2>&1 &
+
+echo "launched supersite campaign for $CLUSTER (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"
+echo "  log (appended): ../../vmps_geometry_data_test/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"
