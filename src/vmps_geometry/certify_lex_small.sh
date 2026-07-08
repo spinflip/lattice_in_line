@@ -36,7 +36,8 @@ else
   CLUSTERS=("${DEFAULT_CLUSTERS[@]}")
 fi
 
-DATA_DIR="$HOME/vmps_geometry_data"
+# Output root; override with DATA_DIR=/path ./certify_lex_small.sh ...
+DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
 # small-cluster defaults (overridable from the environment)
@@ -47,9 +48,9 @@ SEED="${SEED:-1}"
 SYMMETRY="${SYMMETRY:-reversal}"
 
 nohup bash -c '
-  DATA_DIR="$HOME/vmps_geometry_data"
-  TIME_PER_K="$1"; SAT_TIME="$2"; WORKERS="$3"; SEED="$4"; SYMMETRY="$5"; J2="$6"
-  shift 6
+  DATA_DIR="$1"
+  TIME_PER_K="$2"; SAT_TIME="$3"; WORKERS="$4"; SEED="$5"; SYMMETRY="$6"; J2="$7"
+  shift 7
   for c in "$@"; do
     echo "=== lex $c ==="
     args=("$c"); [ -n "$J2" ] && args+=("$J2")
@@ -61,7 +62,7 @@ nohup bash -c '
     SYMMETRY="$SYMMETRY" \
       ./certify_lex_cluster.sh "${args[@]}" >> "$DATA_DIR/certify_lex_$c.log" 2>&1
   done
-' bash "$TIME_PER_K" "$SAT_TIME" "$WORKERS" "$SEED" "$SYMMETRY" "$J2" \
+' bash "$DATA_DIR" "$TIME_PER_K" "$SAT_TIME" "$WORKERS" "$SEED" "$SYMMETRY" "$J2" \
     "${CLUSTERS[@]}" >> "$DATA_DIR/certify_lex_small.log" 2>&1 &
 
 echo "launched lex small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"

@@ -21,7 +21,9 @@ if [ -z "$CLUSTER" ]; then
   exit 1
 fi
 
-mkdir -p ../../vmps_geometry_data_test
+# Output root; override with DATA_DIR=/path ./certify_large_supersite.sh ...
+DATA_DIR="${DATA_DIR:-../../vmps_geometry_data_test}"
+mkdir -p "$DATA_DIR"
 
 # Derive the phase-0 translation-seed geometry from the cluster name.
 #   - {lattice}{L}_{Nx}x{Ny}[x{Nz}]  -> DIAG (make_diagonal Nx Ny Nz)
@@ -69,7 +71,7 @@ MODE=ss \
 BLOCK="$BLOCK" \
 MIN_INTRA="$MIN_INTRA" \
 INTRA_PER_BLOCK="$INTRA_PER_BLOCK" \
-STATE_DIR="../../vmps_geometry_data_test/bw_run_ss_${CLUSTER}_block${BLOCK}" \
+STATE_DIR="$DATA_DIR/bw_run_ss_${CLUSTER}_block${BLOCK}" \
 TIME_HEUR=3600 \
 TIME_PER_K=43200 \
 WORKERS=16 \
@@ -77,7 +79,7 @@ PROCS=60 \
 JOBS_PER_SIDE=4 \
 SAT_TIME=0 \
 POLISH_TIME=1800 \
-nohup ./certify_cluster.sh "$CLUSTER" >> "../../vmps_geometry_data_test/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log" 2>&1 &
+nohup ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log" 2>&1 &
 
 echo "launched supersite campaign for $CLUSTER (block $BLOCK${CTAG:+, constraints$CTAG}; pid $!)"
-echo "  log (appended): ../../vmps_geometry_data_test/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"
+echo "  log (appended): $DATA_DIR/certify_supersite_${CLUSTER}_block${BLOCK}${CTAG}.log"

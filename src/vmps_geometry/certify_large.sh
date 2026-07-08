@@ -9,7 +9,8 @@ if [ -z "$CLUSTER" ]; then
   exit 1
 fi
 
-DATA_DIR="$HOME/vmps_geometry_data"
+# Output root; override with DATA_DIR=/path ./certify_large.sh <cluster>
+DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
 STATE_DIR="$DATA_DIR/bw_run_${CLUSTER}" \

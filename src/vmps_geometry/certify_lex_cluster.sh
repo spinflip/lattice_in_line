@@ -19,7 +19,8 @@
 #                 'vmps-cluster-generator <lat> ... --neighbor-shell 2 --format edgelist'.
 #
 # Tunables (env vars, defaults in parentheses):
-#   STATE_DIR      state dir, SHARED with the J1 campaign  (~/vmps_geometry_data/bw_run_<J1>)
+#   DATA_DIR       output root for the default STATE_DIR     (~/vmps_geometry_data)
+#   STATE_DIR      state dir, SHARED with the J1 campaign  ($DATA_DIR/bw_run_<J1>)
 #   K1             explicit J1 bandwidth cap; empty => use the J1 state's certified
 #                  k1, or its best-known upper bound if not yet certified     ()
 #   SOFTEN_MAX     sweep softenings s=0..SOFTEN_MAX, running the campaign at each
@@ -65,7 +66,8 @@ fi
 
 PYTHON="${PYTHON:-python3}"
 CERT="${CERT:-./bandwidth_certifier.py}"
-STATE_DIR="${STATE_DIR:-$HOME/vmps_geometry_data/bw_run_${J1}}"
+DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+STATE_DIR="${STATE_DIR:-$DATA_DIR/bw_run_${J1}}"
 EDGES_MODULE="${EDGES_MODULE:-cluster_edges.py}"
 J2_EDGES_MODULE="${J2_EDGES_MODULE:-cluster_edges_NNN.py}"
 K1="${K1:-}"

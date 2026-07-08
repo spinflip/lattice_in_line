@@ -6,7 +6,9 @@
 #   ./certify_cluster.sh CLUSTER_NAME
 #
 # Tunables (env vars, defaults in parentheses):
-#   STATE_DIR     state directory                      (bw_run_<cluster>)
+#   DATA_DIR      output root; when set, the default STATE_DIR becomes
+#                 $DATA_DIR/bw_run_<cluster>                           ()
+#   STATE_DIR     state directory      (${DATA_DIR:+$DATA_DIR/}bw_run_<cluster>)
 #   SEED          heuristic master seed                (1)
 #   TIME_HEUR     heuristic phase seconds              (3600)
 #   TIME_OPT      CP-SAT optimize phase seconds        (3600)
@@ -57,7 +59,8 @@ set -euo pipefail
 CLUSTER="${1:?usage: $0 CLUSTER_NAME}"
 PYTHON="${PYTHON:-python3}"
 CERT="${CERT:-./bandwidth_certifier.py}"
-STATE_DIR="${STATE_DIR:-bw_run_${CLUSTER}}"
+DATA_DIR="${DATA_DIR:-}"
+STATE_DIR="${STATE_DIR:-${DATA_DIR:+$DATA_DIR/}bw_run_${CLUSTER}}"
 SEED="${SEED:-1}"
 TIME_HEUR="${TIME_HEUR:-3600}"
 TIME_OPT="${TIME_OPT:-3600}"

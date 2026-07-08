@@ -45,12 +45,12 @@ else
   CLUSTERS=("${DEFAULT_CLUSTERS[@]}")
 fi
 
-DATA_DIR="$HOME/vmps_geometry_data"
+# Output root; override with DATA_DIR=/path ./certify_small_supersite.sh ...
+DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
 nohup bash -c '
-  DATA_DIR="$HOME/vmps_geometry_data"
-  BLOCK="$1"; MIN_INTRA="$2"; INTRA_PER_BLOCK="$3"; CTAG="$4"; shift 4
+  DATA_DIR="$1"; BLOCK="$2"; MIN_INTRA="$3"; INTRA_PER_BLOCK="$4"; CTAG="$5"; shift 5
 
   parse_cluster() {
     python3 - "$1" <<"PY"
@@ -106,5 +106,5 @@ PY
       ./certify_cluster.sh "$c" \
       > "$DATA_DIR/certify_ss_${c}_block${BLOCK}${CTAG}.log" 2>&1
   done
-' bash "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${CLUSTERS[@]}" \
+' bash "$DATA_DIR" "$BLOCK" "$MIN_INTRA" "$INTRA_PER_BLOCK" "$CTAG" "${CLUSTERS[@]}" \
   >> "$DATA_DIR/certify_small_supersite${CTAG}.log" 2>&1 &

@@ -29,7 +29,8 @@ if [ -z "$J1" ]; then
   exit 1
 fi
 
-DATA_DIR="$HOME/vmps_geometry_data"
+# Output root; override with DATA_DIR=/path ./certify_lex_large.sh <J1> [J2]
+DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
 args=("$J1")
