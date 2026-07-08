@@ -1794,6 +1794,14 @@ def cmd_h2_export(args):
 # ladder/state/certificate machinery applies. Labelings in the state are
 # 1-based block indices lab[v] = r + 1, each value used exactly q times.
 # State name: <cluster>__ss<q>.
+#
+# Hidden-bond constraints (optional): --min-intra-edges N requires >= N edges
+# with both endpoints in one block; --intra-per-block requires EVERY block to
+# contain at least one edge (for q=2 the blocking is then a perfect matching
+# of G along bonds). Neither constraint involves k, so sat(G,k) stays monotone
+# and the certificates remain valid FOR THE CONSTRAINED PROBLEM. Constrained
+# runs use their own state file (suffix _ie<N> / _ipb): their UNSAT proofs do
+# not transfer to the unconstrained problem, and vice versa.
 
 def ss_m(n, q):
     if n % q:
@@ -1803,6 +1811,39 @@ def ss_m(n, q):
 
 def ss_value(lab, edges):
     return max(abs(lab[u] - lab[v]) for u, v in edges) if edges else 0
+
+
+def ss_intra_report(lab, edges, q):
+    """(n_intra, uncovered): edges hidden inside blocks, and blocks with no
+    internal edge."""
+    m = len(lab) // q
+    covered = set()
+    n_intra = 0
+    for u, v in edges:
+        if lab[u] == lab[v]:
+            n_intra += 1
+            covered.add(lab[u])
+    return n_intra, m - len(covered)
+
+
+def ss_viol(lab, edges, q, min_intra, per_block):
+    """Total hidden-bond constraint violation of a labeling (0 = satisfied)."""
+    n_intra, uncovered = ss_intra_report(lab, edges, q)
+    v = max(0, min_intra - n_intra)
+    if per_block:
+        v += uncovered
+    return v
+
+
+def ss_constraints(args, edges):
+    """Validated (min_intra, per_block) from the CLI flags."""
+    mi = getattr(args, "min_intra_edges", 0) or 0
+    pb = bool(getattr(args, "intra_per_block", False))
+    if mi < 0:
+        sys.exit("--min-intra-edges must be >= 0")
+    if mi > len(edges):
+        sys.exit(f"--min-intra-edges {mi} exceeds |E| = {len(edges)}")
+    return mi, pb
 
 
 def ss_math_lb(n, edges, q):
@@ -1835,7 +1876,8 @@ def ss_math_lb(n, edges, q):
 
 
 def cpsat_decide_ss(n, edges, q, k, time_limit, workers, hint=None,
-                    symmetry="reversal", fix_label1=None, log=False):
+                    symmetry="reversal", fix_label1=None, log=False,
+                    min_intra=0, intra_per_block=False):
     from ortools.sat.python import cp_model
     m = ss_m(n, q)
     model = cp_model.CpModel()
@@ -1850,9 +1892,34 @@ def cpsat_decide_ss(n, edges, q, k, time_limit, workers, hint=None,
             B[v, r] = b
     for r in range(m):
         model.Add(sum(B[v, r] for v in range(n)) == q)
+    d_of = {}
     for u, v in edges:
         d = model.NewIntVar(0, k, f"d{u}_{v}")
         model.AddAbsEquality(d, R[u] - R[v])
+        d_of[u, v] = d
+    # hidden-bond constraints: force bonds inside supersites (see section
+    # header). Neither involves k, so the decision stays monotone in k.
+    cnotes = []
+    if min_intra:
+        bs = []
+        for (u, v), d in d_of.items():
+            b = model.NewBoolVar(f"in{u}_{v}")
+            model.Add(d == 0).OnlyEnforceIf(b)
+            model.Add(d != 0).OnlyEnforceIf(b.Not())
+            bs.append(b)
+        model.Add(sum(bs) >= min_intra)
+        cnotes.append(f">={min_intra} intra-block edges")
+    if intra_per_block:
+        # e => both endpoints in block r; one true e per block suffices
+        for r in range(m):
+            lits = []
+            for u, v in edges:
+                e = model.NewBoolVar(f"e{u}_{v}_{r}")
+                model.AddImplication(e, B[u, r])
+                model.AddImplication(e, B[v, r])
+                lits.append(e)
+            model.AddBoolOr(lits)
+        cnotes.append("every block has an internal edge")
     # symmetry: block-order reversal; with vertex-transitivity, pin to block 0
     reps = None
     if symmetry == "orbit" and fix_label1 is None:
@@ -1878,6 +1945,8 @@ def cpsat_decide_ss(n, edges, q, k, time_limit, workers, hint=None,
         w = max(range(n), key=lambda x: len(adj[x]))
         model.Add(R[w] <= (m - 1) // 2)
         note = f"reversal: vertex {w} pinned to blocks 0..{(m - 1) // 2}"
+    if cnotes:
+        note += "; " + "; ".join(cnotes)
     if hint is not None:
         for v in range(n):
             model.AddHint(R[v], hint[v] - 1)
@@ -1894,10 +1963,12 @@ def cpsat_decide_ss(n, edges, q, k, time_limit, workers, hint=None,
     return "UNKNOWN", None, note
 
 
-def build_cnf_ss(n, edges, q, k, fix_label1=None, symmetry="reversal"):
+def build_cnf_ss(n, edges, q, k, fix_label1=None, symmetry="reversal",
+                 min_intra=0, intra_per_block=False):
     """One-hot CNF over blocks: x_{v,r} <=> vertex v in block r (r = 1..m).
     Exactly-one per vertex; exactly-q per block (sequential cardinality);
-    forbidden pairs |r - r'| > k per edge.
+    forbidden pairs |r - r'| > k per edge; optional hidden-bond constraints
+    (min_intra / intra_per_block, matching cpsat_decide_ss).
     Variable convention var(v,r) = v*m + r, so decoding differs from the
     path mode (positions run 1..m, repeated)."""
     m = ss_m(n, q)
@@ -1952,6 +2023,34 @@ def build_cnf_ss(n, edges, q, k, fix_label1=None, symmetry="reversal"):
                 if abs(r1 - r2) > k:
                     clauses.append([-var(u, r1), -var(v, r2)])
 
+    # hidden-bond constraints (mirror cpsat_decide_ss, so ss-verify checks the
+    # SAME decision). e(u,v,r) => both endpoints in block r: one implication
+    # direction suffices for "at least" requirements.
+    cnotes = []
+    if min_intra or intra_per_block:
+        e_of = {}
+        for (u, v) in edges:
+            for r in range(1, m + 1):
+                e = next_aux
+                next_aux += 1
+                clauses.append([-e, var(u, r)])
+                clauses.append([-e, var(v, r)])
+                e_of[u, v, r] = e
+        if intra_per_block:
+            for r in range(1, m + 1):
+                clauses.append([e_of[u, v, r] for (u, v) in edges])
+            cnotes.append("every block has an internal edge")
+        if min_intra:
+            ts = []
+            for (u, v) in edges:
+                t = next_aux
+                next_aux += 1
+                clauses.append([-t] + [e_of[u, v, r] for r in range(1, m + 1)])
+                ts.append(t)
+            # at least min_intra of ts true <=> at most |ts|-min_intra false
+            at_most([-t for t in ts], len(ts) - min_intra)
+            cnotes.append(f">={min_intra} intra-block edges")
+
     reps = None
     if symmetry == "orbit" and fix_label1 is None:
         res = orbit_representatives(n, edges)
@@ -1969,6 +2068,8 @@ def build_cnf_ss(n, edges, q, k, fix_label1=None, symmetry="reversal"):
         for r in range((m - 1) // 2 + 2, m + 1):
             clauses.append([-var(w, r)])
         note = f"reversal: vertex {w} pinned to blocks 0..{(m - 1) // 2}"
+    if cnotes:
+        note += "; " + "; ".join(cnotes)
     return clauses, next_aux - 1, note
 
 
@@ -1985,12 +2086,16 @@ def ss_decode(n, q, model_lits):
 
 
 def _ss_sa_chain(payload):
-    """One independent supersite annealing chain (picklable for mp.Pool)."""
-    n, edges, q, seed, t_budget, init, target = payload
+    """One independent supersite annealing chain (picklable for mp.Pool).
+    Cost is lexicographic (constraint violation, max distance, sum): with
+    hidden-bond constraints active the chain first drives the violation to 0,
+    then minimizes bandwidth among feasible blockings."""
+    n, edges, q, seed, t_budget, init, target, min_intra, per_block = payload
     rng = random.Random(seed)
     lab = init[:] if init else [(i // q) + 1 for i in range(n)]
     if not init:
         rng.shuffle(lab)
+    m = n // q
 
     def cost(l):
         mx = s = 0
@@ -1999,39 +2104,56 @@ def _ss_sa_chain(payload):
             s += d
             if d > mx:
                 mx = d
-        return mx, s
+        viol = 0
+        if min_intra or per_block:
+            covered = set()
+            n_in = 0
+            for u, v in edges:
+                if l[u] == l[v]:
+                    n_in += 1
+                    covered.add(l[u])
+            viol = max(0, min_intra - n_in)
+            if per_block:
+                viol += m - len(covered)
+        return viol, mx, s
 
-    mx, c = cost(lab)
-    best, bm, bc = lab[:], mx, c
+    vi, mx, c = cost(lab)
+    best, bv, bm, bc = lab[:], vi, mx, c
     t_end = time.time() + t_budget
     T = max(2.0, bm / 4)
-    while time.time() < t_end and bm > target:
+    while time.time() < t_end and (bm > target or bv > 0):
         for _ in range(2000):
             a, b = rng.randrange(n), rng.randrange(n)
             if a == b or lab[a] == lab[b]:
                 continue                       # swap across blocks only
             lab[a], lab[b] = lab[b], lab[a]
-            m2, c2 = cost(lab)
-            if (m2, c2) <= (mx, c) or \
-               rng.random() < math.exp(-((m2 - mx) * 4 + (c2 - c) * 0.001) / T):
-                mx, c = m2, c2
-                if (mx, c) < (bm, bc):
-                    best, bm, bc = lab[:], mx, c
+            v2, m2, c2 = cost(lab)
+            if (v2, m2, c2) <= (vi, mx, c) or \
+               rng.random() < math.exp(-((v2 - vi) * 8 + (m2 - mx) * 4
+                                         + (c2 - c) * 0.001) / T):
+                vi, mx, c = v2, m2, c2
+                if (vi, mx, c) < (bv, bm, bc):
+                    best, bv, bm, bc = lab[:], vi, mx, c
             else:
                 lab[a], lab[b] = lab[b], lab[a]
         T = max(0.05, T * 0.95)
-    return bm, best
+    return bv, bm, best
 
 
-def sa_ss(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None):
-    """Parallel multi-start supersite SA. Returns (bandwidth, labeling)."""
+def sa_ss(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None,
+          min_intra=0, per_block=False):
+    """Parallel multi-start supersite SA. Returns (viol, bandwidth, labeling);
+    viol > 0 means the hidden-bond constraints could not be satisfied and the
+    labeling must NOT be recorded as an upper bound for the constrained run."""
     best_lab = init[:] if init else [(i // q) + 1 for i in range(n)]
     best_bw = max(abs(best_lab[u] - best_lab[v]) for u, v in edges)
-    if best_bw <= target or procs <= 1:
+    best_vi = ss_viol(best_lab, edges, q, min_intra, per_block)
+    if best_vi == 0 and best_bw <= target:
+        return 0, best_bw, best_lab
+    if procs <= 1:
         # single chain (small graphs / explicit serial request)
-        if best_bw <= target:
-            return best_bw, best_lab
-        return _ss_sa_chain((n, edges, q, seed, t_budget, init, target))
+        return _ss_sa_chain((n, edges, q, seed, t_budget, init, target,
+                             min_intra, per_block))
     if stall is None or stall <= 0:
         stall = max(60.0, t_budget / 10)
     t_end = time.time() + t_budget
@@ -2039,7 +2161,7 @@ def sa_ss(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None):
     batch = max(15.0, min(stall / 2, t_budget / 4))
     r = 0
     with mp.Pool(procs) as pool:
-        while time.time() < t_end and best_bw > target:
+        while time.time() < t_end and (best_bw > target or best_vi > 0):
             if time.time() - last_improve > stall:
                 print(f"[ss-heuristic] no improvement for {stall:.0f}s; "
                       f"stopping early at UB {best_bw}")
@@ -2048,49 +2170,77 @@ def sa_ss(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None):
             if dur <= 1:
                 break
             jobs = [(n, edges, q, seed + r * procs + p, dur,
-                     best_lab if p % 2 == 0 else None, target)
+                     best_lab if p % 2 == 0 else None, target,
+                     min_intra, per_block)
                     for p in range(procs)]
             r += 1
-            for bw, lab in pool.imap_unordered(_ss_sa_chain, jobs):
-                if bw < best_bw:
-                    best_bw, best_lab = bw, lab
+            for vi, bw, lab in pool.imap_unordered(_ss_sa_chain, jobs):
+                if (vi, bw) < (best_vi, best_bw):
+                    best_vi, best_bw, best_lab = vi, bw, lab
                     last_improve = time.time()
-                    print(f"[ss-heuristic] new upper bound: {best_bw}")
-    return best_bw, best_lab
+                    print(f"[ss-heuristic] new upper bound: {best_bw}"
+                          + (f" (constraint violation {best_vi})"
+                             if best_vi else ""))
+    return best_vi, best_bw, best_lab
 
 
 def ss_state(args, n, edges):
-    return State(args.state_dir, f"{args.cluster or 'edgefile'}__ss{args.block}",
-                 n, edges, mult=args.block)
+    # Constrained runs get their own state file: hidden-bond UNSAT proofs are
+    # conditional on the constraint and must never widen/narrow the window of
+    # the unconstrained problem (or of a differently-constrained one).
+    name = f"{args.cluster or 'edgefile'}__ss{args.block}"
+    if getattr(args, "min_intra_edges", 0):
+        name += f"_ie{args.min_intra_edges}"
+    if getattr(args, "intra_per_block", False):
+        name += "_ipb"
+    return State(args.state_dir, name, n, edges, mult=args.block)
 
 
 def cmd_ss_run(args):
     n, edges = get_graph(args)
     q = args.block
     m = ss_m(n, q)
+    min_intra, per_block = ss_constraints(args, edges)
     st = ss_state(args, n, edges)
-    lbm = ss_math_lb(n, edges, q)
-    st.record_math_lb(lbm)
+    lbm = ss_math_lb(n, edges, q)     # constraint shrinks the feasible set,
+    st.record_math_lb(lbm)            # so unconstrained LBs remain valid
     st.record_unsat(lbm - 1, "math")
     print(f"[ss] {m} supersites of {q} spins; math lower bound {lbm}")
+    if min_intra or per_block:
+        print(f"[ss] hidden-bond constraints: "
+              + ", ".join(([f">={min_intra} intra edges"] if min_intra else [])
+                          + (["every block internally bonded"] if per_block
+                             else [])))
     cur = st.read()
     if cur["best_labeling"] is None:
-        bm, lab = sa_ss(n, edges, q, None, args.seed, args.heur_time,
-                        procs=args.procs, target=lbm, stall=args.stall)
-        st.record_labeling(lab, "ss-heuristic")
+        vi, bm, lab = sa_ss(n, edges, q, None, args.seed, args.heur_time,
+                            procs=args.procs, target=lbm, stall=args.stall,
+                            min_intra=min_intra, per_block=per_block)
+        if vi == 0:
+            st.record_labeling(lab, "ss-heuristic")
+        else:
+            print(f"[ss] heuristic ended with constraint violation {vi}; "
+                  f"no upper bound recorded (CP-SAT will search from scratch)")
         cur = st.read()
-    side = 0
+    side = 0 if cur["best_labeling"] is not None else 1
     while True:
         lb, ub = State.window(cur)
-        if lb >= ub:
+        if ub is not None and lb >= ub:
             break
-        k = ub - 1 if side == 0 else lb
+        if lb > m - 1:
+            print("[ss-run] lower bound exceeds m-1: the hidden-bond "
+                  "constraints are infeasible on this graph (e.g. no perfect "
+                  "matching along bonds for q=2)")
+            break
+        k = ub - 1 if (side == 0 and ub is not None) else lb
         print(f"[ss-run] window [{lb},{ub}] -> deciding k={k}")
         hint = cur["best_labeling"] if side == 0 else None
         res, lab, _ = cpsat_decide_ss(n, edges, q, k, args.time_per_k,
                                       args.workers, hint=hint,
                                       symmetry=args.symmetry,
-                                      fix_label1=args.fix_label1)
+                                      fix_label1=args.fix_label1,
+                                      min_intra=min_intra,
+                                      intra_per_block=per_block)
         if res == "SAT":
             st.record_labeling(lab, f"ss-run(k={k})")
         elif res == "UNSAT":
@@ -2112,12 +2262,15 @@ def cmd_ss_run(args):
 
 def cmd_ss_decide(args):
     n, edges = get_graph(args)
+    min_intra, per_block = ss_constraints(args, edges)
     st = ss_state(args, n, edges)
     hint = st.read()["best_labeling"]
     res, lab, note = cpsat_decide_ss(n, edges, args.block, args.k, args.time,
                                      args.workers, hint=hint,
                                      symmetry=args.symmetry,
-                                     fix_label1=args.fix_label1)
+                                     fix_label1=args.fix_label1,
+                                     min_intra=min_intra,
+                                     intra_per_block=per_block)
     print(f"[ss-decide k={args.k}] {res}  (symmetry: {note})")
     if res == "SAT":
         st.record_labeling(lab, f"ss-decide(k={args.k})")
@@ -2129,9 +2282,12 @@ def cmd_ss_decide(args):
 
 def cmd_ss_cnf(args):
     n, edges = get_graph(args)
+    min_intra, per_block = ss_constraints(args, edges)
     clauses, nvars, note = build_cnf_ss(n, edges, args.block, args.k,
                                         fix_label1=args.fix_label1,
-                                        symmetry=args.symmetry)
+                                        symmetry=args.symmetry,
+                                        min_intra=min_intra,
+                                        intra_per_block=per_block)
     write_dimacs(args.out, clauses, nvars,
                  [f"supersite (q={args.block}) decision, k={args.k}, n={n}, "
                   f"|E|={len(edges)}",
@@ -2143,9 +2299,11 @@ def cmd_ss_cnf(args):
 
 def cmd_ss_verify(args):
     n, edges = get_graph(args)
+    min_intra, per_block = ss_constraints(args, edges)
     st = ss_state(args, n, edges)
     pre = build_cnf_ss(n, edges, args.block, args.k,
-                       fix_label1=args.fix_label1, symmetry=args.symmetry)
+                       fix_label1=args.fix_label1, symmetry=args.symmetry,
+                       min_intra=min_intra, intra_per_block=per_block)
     clauses, nvars, note = pre
     vd, mdl, proof = parallel_crosscheck(clauses, args.time,
                                          args.proof_out is not None)
@@ -2162,7 +2320,8 @@ def cmd_ss_verify(args):
         print(f"[ss-verify] both solvers UNSAT -> recorded (xsat)")
     elif "SAT" in verdicts and mdl is not None:
         lab = ss_decode(n, args.block, [x for x in mdl if x > 0])
-        if ss_value(lab, edges) <= args.k:
+        if ss_value(lab, edges) <= args.k and \
+           ss_viol(lab, edges, args.block, min_intra, per_block) == 0:
             st.record_labeling(lab, f"ss-pysat(k={args.k})")
     lb, ub = State.window(st.read())
     print(f"[ss] window now [{lb},{ub}]")
@@ -2226,11 +2385,13 @@ def cmd_ss_blocks(args):
              for (ra, rb), es in sorted(inter_by_pair.items())]
 
     max_d = max((it["chain_distance"] for it in inter), default=0)
+    n_bonded_blocks = sum(1 for r in range(m) if intra_by_block[r])
     out = {
         "cluster": args.cluster or "edgefile",
         "block_size": q, "num_supersites": m,
         "num_sites": n, "num_edges_total": len(edges),
         "num_intra_edges": n_intra, "num_inter_edges": n_inter,
+        "supersites_with_internal_edges": n_bonded_blocks,
         "supersite_bandwidth": ss_value(lab, edges),
         "max_chain_distance": max_d,
         "chain_order": blocks,
@@ -2249,6 +2410,7 @@ def cmd_ss_blocks(args):
               f"{out['supersite_bandwidth']}")
         print(f"  edges: {len(edges)} total = {n_intra} intra + {n_inter} inter "
               f"(all terms included)")
+        print(f"  supersites with internal edges: {n_bonded_blocks}/{m}")
         print(f"  inter couplings by chain distance: "
               + ", ".join(f"d={d}: {bydist[d]}" for d in sorted(bydist)))
     else:
@@ -2639,6 +2801,8 @@ def _block_graph(n, edges, match):
 def cmd_ss_seed(args):
     import numpy as np
     import importlib.util as ilu
+    if args.block != 2:
+        sys.exit("ss-seed pairs sites under a translation, so it is q=2 only")
     spec = ilu.spec_from_file_location("cluster_generator", args.generator)
     gen = ilu.module_from_spec(spec)
     sys.modules["cluster_generator"] = gen
@@ -2699,8 +2863,7 @@ def cmd_ss_seed(args):
     if n % 2:
         sys.exit("translation blocking needs q=2, but n is odd")
 
-    st = State(args.state_dir, f"{args.cluster or 'edgefile'}__ss2",
-               n, edges_tgt, mult=2)
+    st = ss_state(args, n, edges_tgt)
 
     if args.lattice in strip_variants:
         # strip translations: integer multiples of the two period directions,
@@ -2785,7 +2948,13 @@ def cmd_ss_seed(args):
             lab[mapping[v]] = pos
     assert sorted(lab) == sorted(list(range(1, n // 2 + 1)) * 2)
     print(f"[ss-seed] best translation blocking: supersite bandwidth {bw}")
-    st.record_labeling(lab, "ss-seed(translation)")
+    mi, pb = ss_constraints(args, edges_tgt)
+    vi = ss_viol(lab, edges_tgt, 2, mi, pb)
+    if vi == 0:
+        st.record_labeling(lab, "ss-seed(translation)")
+    else:
+        print(f"[ss-seed] blocking violates the hidden-bond constraints "
+              f"(violation {vi}, e.g. pairs not along bonds); NOT seeded")
     print_status(st.read(), edges_tgt)
 
 
@@ -2997,6 +3166,15 @@ def main():
         common(p, needs_k=needs_k)
         p.add_argument("--block", type=int, default=2,
                        help="spins per supersite (default 2 = ladder rungs)")
+        p.add_argument("--min-intra-edges", type=int, default=0,
+                       help="require at least this many edges hidden inside "
+                            "supersites (0 = off). Uses a separate state file "
+                            "tagged _ie<N>; certificates are conditional on "
+                            "the constraint.")
+        p.add_argument("--intra-per-block", action="store_true",
+                       help="require EVERY supersite to contain at least one "
+                            "edge (q=2: the blocking is a perfect matching "
+                            "along bonds). Separate state tagged _ipb.")
 
     p = sub.add_parser("ss-run"); sscommon(p)
     p.add_argument("--heur-time", type=float, default=300)
