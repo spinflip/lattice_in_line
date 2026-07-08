@@ -259,7 +259,7 @@ if [[ "$MODE" == "ss" ]]; then
   # phase 6: polish the best known layout (ALWAYS, closed or not) at its
   # current bandwidth UB. Holding d <= UB can only preserve or improve it.
   if [[ "${POLISH_TIME%.*}" -gt 0 ]]; then
-    log "phase 6: polishing total interaction range at bandwidth $UB (${POLISH_TIME}s)"
+    log "phase 6: polishing total interaction range at bandwidth $UB ($(_dur "$POLISH_TIME"))"
     C polish --block "$BLOCK" --target "$UB" --time "$POLISH_TIME" \
       --workers "$WORKERS" ${SS_FLAGS[@]+"${SS_FLAGS[@]}"}
   fi
@@ -284,11 +284,11 @@ else
 fi
 
 # ---------------------------------------------------------------- phase 2
-log "phase 2: heuristic upper bound (${TIME_HEUR}s, ${PROCS} procs, seed ${SEED})"
+log "phase 2: heuristic upper bound ($(_dur "$TIME_HEUR"), ${PROCS} procs, seed ${SEED})"
 C heuristic --time "$TIME_HEUR" --procs "$PROCS" --seed "$SEED" --stall "$STALL"
 
 # ---------------------------------------------------------------- phase 3
-log "phase 3: CP-SAT optimize pass (${TIME_OPT}s)"
+log "phase 3: CP-SAT optimize pass ($(_dur "$TIME_OPT"))"
 C optimize --time "$TIME_OPT" --workers "$WORKERS" --symmetry "$SYMMETRY"
 
 # ---------------------------------------------------------------- phase 4
@@ -381,7 +381,7 @@ if [[ "$CLOSED" -eq 1 ]]; then
     elif grep -q 'instance is SAT' "$STATE_DIR/verify_k${KDEC}.log"; then
       log "ERROR: python-sat found k=$KDEC SAT — contradicts CP-SAT. Investigate!"
     else
-      log "cross-check inconclusive within ${SAT_TIME}s; certification stands at"
+      log "cross-check inconclusive within $(_dur "$SAT_TIME"); certification stands at"
       log "cpsat level. Re-run: $PYTHON $CERT verify-unsat --cluster $CLUSTER \\"
       log "  --state-dir $STATE_DIR --k $KDEC --time <more> --cnf-out $CNF --proof-out $DRAT"
     fi
@@ -389,7 +389,7 @@ if [[ "$CLOSED" -eq 1 ]]; then
 fi
 # phase 6: polish the best known ordering (ALWAYS) at its current bandwidth UB
 if [[ "${POLISH_TIME%.*}" -gt 0 ]]; then
-  log "phase 6: polishing total interaction range at bandwidth $KSTAR (${POLISH_TIME}s)"
+  log "phase 6: polishing total interaction range at bandwidth $KSTAR ($(_dur "$POLISH_TIME"))"
   C polish --target "$KSTAR" --time "$POLISH_TIME" --workers "$WORKERS"
 fi
 log "exporting ordering"

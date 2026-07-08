@@ -265,7 +265,7 @@ run_cap() {
   # below automatically warm-starts from the SA incumbent. This is the main
   # quality driver for large systems the ladder cannot close.
   if [[ "$HEUR_TIME" -gt 0 ]]; then
-    log "phase 0: lex-heuristic ${HEUR_TIME}s x ${PROCS} procs (parallel SA), k1=$eff"
+    log "phase 0: lex-heuristic $(_dur "$HEUR_TIME") x ${PROCS} procs (parallel SA), k1=$eff"
     "$PYTHON" "$CERT" lex-heuristic \
       --cluster "$J1" --state-dir "$STATE_DIR" --edges-module "$EDGES_MODULE" \
       "${J2_ARGS[@]}" "${k1args[@]}" \
@@ -274,8 +274,8 @@ run_cap() {
   fi
 
   local capnote=""
-  [[ -n "$LADDER_BIN" ]] && capnote=", cap ${LADDER_CAP}s"
-  log "phase 1: lex-ladder (k1=$eff, time-per-k=${TIME_PER_K}s, workers=${WORKERS}, symmetry=${SYMMETRY}${capnote})"
+  [[ -n "$LADDER_BIN" ]] && capnote=", cap $(_dur "$LADDER_CAP")"
+  log "phase 1: lex-ladder (k1=$eff, time-per-k=$(_dur "$TIME_PER_K"), workers=${WORKERS}, symmetry=${SYMMETRY}${capnote})"
   # timeout can't wrap the C() function, so build the certifier call as an array
   local cmd=()
   [[ -n "$LADDER_BIN" ]] && cmd+=("$LADDER_BIN" "$LADDER_CAP")
@@ -286,7 +286,7 @@ run_cap() {
   local rc=0
   "${cmd[@]}" || rc=$?
   if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
-    log "softening $s: ladder hit ${LADDER_CAP}s cap; exporting best-so-far"
+    log "softening $s: ladder hit $(_dur "$LADDER_CAP") cap; exporting best-so-far"
   elif [[ "$rc" -ne 0 ]]; then
     log "softening $s: lex-ladder failed (rc=$rc, see above); skipping this cap"
     SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")")
@@ -308,7 +308,7 @@ run_cap() {
     local kdec=$((UB - 1)) pl
     pl="$(proof_of "$lex_json" "$kdec")"
     if [[ "$pl" != "xsat" && "$pl" != "drat" ]]; then
-      log "phase 2: SAT cross-check of decisive k2=$kdec (${SAT_TIME}s)"
+      log "phase 2: SAT cross-check of decisive k2=$kdec ($(_dur "$SAT_TIME"))"
       C lex-verify "${J2_ARGS[@]}" "${k1args[@]}" --k "$kdec" --time "$SAT_TIME" \
         --symmetry "$FINAL_SYM" --cnf-out "$STATE_DIR/${tag}_k2_${kdec}.cnf" \
         --proof-out "$STATE_DIR/${tag}_k2_${kdec}.drat" \
@@ -343,8 +343,8 @@ if [[ "${LADDER_TIME%.*}" -gt 0 ]]; then
 fi
 
 log "softening sweep: s = ${SOFTEN_MIN}..${SOFTEN_MAX}  (base J1 cap k1=$BASE_K1)"
-[[ "$HEUR_TIME" -gt 0 ]] && log "phase-0 parallel SA: ${HEUR_TIME}s x ${PROCS} procs per softening"
-[[ -n "$LADDER_BIN" ]] && log "per-softening ladder cap: ${LADDER_CAP}s (via $LADDER_BIN)"
+[[ "$HEUR_TIME" -gt 0 ]] && log "phase-0 parallel SA: $(_dur "$HEUR_TIME") x ${PROCS} procs per softening"
+[[ -n "$LADDER_BIN" ]] && log "per-softening ladder cap: $(_dur "$LADDER_CAP") (via $LADDER_BIN)"
 SUMMARY=()
 for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
   run_cap "$s"

@@ -252,8 +252,8 @@ def run_heuristic(n, edges, total_time, procs, init=None, seed=0, target=0,
     with mp.Pool(procs) as pool:
         while time.time() < t_end:
             if time.time() - last_improve > stall:
-                print(f"[heuristic] no improvement for {stall:.0f}s; "
-                      f"stopping early at UB {best_bw}")
+                print(f"[heuristic] no improvement for {stall:.0f}s "
+                      f"({stall / 3600:.2f}h); stopping early at UB {best_bw}")
                 break
             dur = min(batch, t_end - time.time())
             if dur <= 1:
@@ -553,7 +553,8 @@ def parallel_crosscheck(clauses, time_limit, want_proof):
     t0 = time.time()
     with mp.Pool(2) as pool:
         for name, v, mdl, prf in pool.imap_unordered(_pysat_proc, jobs):
-            print(f"[crosscheck] {name}: {v}  ({time.time() - t0:.1f}s)")
+            _el = time.time() - t0
+            print(f"[crosscheck] {name}: {v}  ({_el:.1f}s = {_el / 3600:.2f}h)")
             verdicts[name] = v
             if v == "SAT" and mdl is not None:
                 model = mdl
@@ -2187,8 +2188,8 @@ def sa_ss(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None,
     with mp.Pool(procs) as pool:
         while time.time() < t_end and (best_bw > target or best_vi > 0):
             if time.time() - last_improve > stall:
-                print(f"[ss-heuristic] no improvement for {stall:.0f}s; "
-                      f"stopping early at UB {best_bw}")
+                print(f"[ss-heuristic] no improvement for {stall:.0f}s "
+                      f"({stall / 3600:.2f}h); stopping early at UB {best_bw}")
                 break
             dur = min(batch, t_end - time.time())
             if dur <= 1:
