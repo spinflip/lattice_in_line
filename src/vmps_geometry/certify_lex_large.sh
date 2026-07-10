@@ -18,6 +18,13 @@
 #
 # Usage:
 #   ./certify_lex_large.sh <J1_cluster> [J2_cluster_or_edgefile]
+#
+# Parallel sweep: the softened caps are fully independent (per-k1 state files),
+# so they can run concurrently instead of one after another:
+#   SOFTEN_PARALLEL=1 ./certify_lex_large.sh CLUSTER
+# runs up to SOFTEN_JOBS (6) caps at once with WORKERS/PROCS clamped to
+# SOFTEN_THREADS (24) each -> ~144 CPUs peak, and the whole sweep finishes in
+# ~LADDER_TIME instead of ~(SOFTEN_MAX+1)*LADDER_TIME.
 cd "$(dirname "$0")"
 
 J1="$1"

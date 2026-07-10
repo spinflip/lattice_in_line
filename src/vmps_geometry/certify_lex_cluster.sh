@@ -39,6 +39,12 @@
 #   WORKERS        CP-SAT threads per decision               (16)
 #   SEED           heuristic seed                            (1)
 #   SYMMETRY       navigation symmetry: orbit|reversal       (reversal)
+#   SOFTEN_PARALLEL 1 = run the softening sweep IN PARALLEL: each cap is fully
+#                  independent (per-k1 state files), so up to SOFTEN_JOBS caps
+#                  run concurrently, each writing its own log in STATE_DIR.  (0)
+#   SOFTEN_JOBS    max concurrent softenings when parallel                   (6)
+#   SOFTEN_THREADS per-cap clamp on WORKERS and PROCS when parallel, so the
+#                  sweep peaks at ~SOFTEN_JOBS x SOFTEN_THREADS CPUs        (24)
 #   SAT_TIME       decisive-k2 SAT cross-check seconds; 0 = skip            (0)
 #   FINAL_SYM      symmetry for the cross-check CNF          (reversal)
 #   EDGES_MODULE   J1 table module                           (cluster_edges.py)
@@ -98,6 +104,16 @@ SEED="${SEED:-1}"
 SYMMETRY="${SYMMETRY:-reversal}"
 SAT_TIME="${SAT_TIME:-0}"
 FINAL_SYM="${FINAL_SYM:-reversal}"
+# Parallel softening sweep: every cap has its own per-k1 state file and there
+# is no cross-cap dependency (BASE_K1 is resolved once, read-only), so the
+# caps can run concurrently. Clamp per-cap threads so the total stays bounded.
+SOFTEN_PARALLEL="${SOFTEN_PARALLEL:-0}"
+SOFTEN_JOBS="${SOFTEN_JOBS:-6}"
+SOFTEN_THREADS="${SOFTEN_THREADS:-24}"
+if [[ "$SOFTEN_PARALLEL" -eq 1 ]]; then
+  [[ "$WORKERS" -gt "$SOFTEN_THREADS" ]] && WORKERS="$SOFTEN_THREADS"
+  [[ "$PROCS" -gt "$SOFTEN_THREADS" ]] && PROCS="$SOFTEN_THREADS"
+fi
 
 # Resolve the per-softening SA-seed vs ladder budget split up front (needed by
 # the plan and by run_cap). auto: half to the SA seed when capped, else 0.
@@ -195,6 +211,15 @@ print_plan() {
   else
     log "  per-softening budget : uncapped"
   fi
+  if [[ "$SOFTEN_PARALLEL" -eq 1 ]]; then
+    local ncaps=$(( SOFTEN_MAX - SOFTEN_MIN + 1 ))
+    local jeff=$(( ncaps < SOFTEN_JOBS ? ncaps : SOFTEN_JOBS ))
+    log "  PARALLEL sweep : $jeff softenings at once, <= ${SOFTEN_THREADS} threads each   CPUs: ~$(( jeff * SOFTEN_THREADS ))"
+    if [[ "$LADDER_TIME" -gt 0 ]]; then
+      local waves=$(( (ncaps + jeff - 1) / jeff ))
+      log "  overall wall-clock with parallelism : <= $(_dur $(( waves * LADDER_TIME )) )"
+    fi
+  fi
   log "===================================================="
 }
 print_plan
@@ -249,6 +274,14 @@ else
     log "J1 cap base: k1=$BASE_K1 (best-known J1 bandwidth; NOT certified)"
   fi
 fi
+# record one summary row: into the SUMMARY array (sequential sweep) AND a
+# per-cap file, because the parallel sweep runs run_cap in subshells whose
+# array appends would be lost.
+add_summary() {
+  SUMMARY+=("$2")
+  printf '%s\n' "$2" > "$STATE_DIR/.lex_summary_k1_$1"
+}
+
 # run the full lex campaign for ONE softening s (effective J1 cap = BASE_K1 + s).
 # Each cap is independent: its state/labeling/CNF are tagged k1_<eff>. Appends a
 # one-line result to SUMMARY. Never aborts the sweep — failures are logged.
@@ -289,7 +322,7 @@ run_cap() {
     log "softening $s: ladder hit $(_dur "$LADDER_CAP") cap; exporting best-so-far"
   elif [[ "$rc" -ne 0 ]]; then
     log "softening $s: lex-ladder failed (rc=$rc, see above); skipping this cap"
-    SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")")
+    add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")"
     return 0
   fi
 
@@ -297,7 +330,7 @@ run_cap() {
   read -r LB UB < <(window "$lex_json")
   if [[ "$UB" -lt 0 ]]; then
     log "softening $s: no k2 result yet (re-run to resume)"
-    SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "-" "no-result")")
+    add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "-" "no-result")"
     return 0
   fi
   local closed=0
@@ -320,10 +353,10 @@ run_cap() {
   C lex-export "${J2_ARGS[@]}" "${k1args[@]}" > "$assign"
   if [[ "$closed" -eq 1 ]]; then
     log "softening $s: k1=$eff -> k2*=$UB (CERTIFIED given k1); labeling: $assign"
-    SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "$UB" "certified")")
+    add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "$UB" "certified")"
   else
     log "softening $s: k1=$eff -> best k2=$UB (lb $LB, NOT certified); labeling: $assign"
-    SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "$UB" "open[lb=$LB]")")
+    add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "$UB" "open[lb=$LB]")"
   fi
   return 0
 }
@@ -346,9 +379,39 @@ log "softening sweep: s = ${SOFTEN_MIN}..${SOFTEN_MAX}  (base J1 cap k1=$BASE_K1
 [[ "$HEUR_TIME" -gt 0 ]] && log "phase-0 parallel SA: $(_dur "$HEUR_TIME") x ${PROCS} procs per softening"
 [[ -n "$LADDER_BIN" ]] && log "per-softening ladder cap: $(_dur "$LADDER_CAP") (via $LADDER_BIN)"
 SUMMARY=()
-for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
-  run_cap "$s"
-done
+if [[ "$SOFTEN_PARALLEL" -eq 1 ]]; then
+  JEFF=$(( SOFTEN_MAX - SOFTEN_MIN + 1 ))
+  [[ "$JEFF" -gt "$SOFTEN_JOBS" ]] && JEFF="$SOFTEN_JOBS"
+  log "parallel sweep: $JEFF concurrent softenings (workers=$WORKERS procs=$PROCS each); per-cap logs:"
+  pids=()
+  for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
+    eff=$((BASE_K1 + s))
+    rm -f "$STATE_DIR/.lex_summary_k1_${eff}"
+    if [[ "${#pids[@]}" -ge "$JEFF" ]]; then      # throttle: wait for the oldest
+      wait "${pids[0]}" || true
+      pids=("${pids[@]:1}")
+    fi
+    CAPLOG="$STATE_DIR/lex_sweep_k1_${eff}.log"
+    log "  s=$s (k1=$eff) -> $CAPLOG"
+    ( run_cap "$s" ) >> "$CAPLOG" 2>&1 &
+    pids+=($!)
+  done
+  for pid in ${pids[@]+"${pids[@]}"}; do wait "$pid" || true; done
+  # collect the per-cap summary rows in sweep order
+  for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
+    eff=$((BASE_K1 + s))
+    f="$STATE_DIR/.lex_summary_k1_${eff}"
+    if [[ -f "$f" ]]; then
+      SUMMARY+=("$(cat "$f")")
+    else
+      SUMMARY+=("$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "no summary (crashed? see lex_sweep_k1_${eff}.log)")")
+    fi
+  done
+else
+  for ((s = SOFTEN_MIN; s <= SOFTEN_MAX; s++)); do
+    run_cap "$s"
+  done
+fi
 
 log "================  sweep summary  (J1=$J1, J2=$J2NAME, base k1=$BASE_K1)  ================"
 for line in "${SUMMARY[@]}"; do log "$line"; done
