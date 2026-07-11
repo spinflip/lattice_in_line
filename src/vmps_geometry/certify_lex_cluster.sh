@@ -53,11 +53,13 @@
 #   PYTHON         interpreter                               (python3)
 #   RESUME         1 = resume an interrupted sweep on re-run: already-certified
 #                  caps skip the expensive phases 0-1 (pending cross-check and
-#                  the export still complete), and a finished phase-0 SA seed
-#                  is not repeated for a cap whose ladder is mid-flight. All
-#                  state accumulates per cap, so re-running the SAME command
-#                  continues from the first unfinished softening.
-#                  0 = re-run every phase regardless.                       (1)
+#                  the export still complete); caps that EXHAUSTED their
+#                  LADDER_TIME budget without certifying are also skipped,
+#                  UNLESS LADDER_TIME was raised since (then they retry); and
+#                  a finished phase-0 SA seed is not repeated for a cap whose
+#                  ladder is mid-flight. All state accumulates per cap, so
+#                  re-running the SAME command continues from the first
+#                  unfinished softening. 0 = re-run every phase regardless.  (1)
 #   PLAN_ONLY      1 = print the campaign plan and exit without running   (0)
 #   CONFIRM        1 = after the plan, ask for keyboard y/N confirmation
 #                  (interactive only; the launchers set this)             (0)
@@ -308,10 +310,25 @@ run_cap() {
   # completed phase-0 SA seed (marker file) is not repeated for a cap whose
   # ladder is still open. RESUME=0 re-runs everything.
   local LB0 UB0 skip01=0
+  local to_mark="$STATE_DIR/.lex_ladder_timeout_${J2NAME}_k1_${eff}"
   read -r LB0 UB0 < <(window "$lex_json")
   if [[ "$RESUME" -eq 1 && "$UB0" -ge 0 && "$LB0" -ge "$UB0" ]]; then
     skip01=1
+    rm -f "$to_mark"
     log "softening $s: k1=$eff already CERTIFIED (k2*=$UB0) from a previous run; skipping phases 0-1"
+  elif [[ "$RESUME" -eq 1 && -f "$to_mark" ]]; then
+    # hard cap: a previous run exhausted its ladder budget without certifying.
+    # Skip it on resume UNLESS the budget has been raised (then retry).
+    local prev_budget
+    prev_budget="$(cat "$to_mark" 2>/dev/null || echo 0)"
+    if [[ "$LADDER_TIME" -gt 0 && "$prev_budget" -ge "$LADDER_TIME" ]]; then
+      skip01=1
+      log "softening $s: k1=$eff previously EXHAUSTED its $(_dur "$prev_budget") ladder budget without certifying; skipping phases 0-1 (best-so-far is kept). Raise LADDER_TIME, delete $to_mark, or RESUME=0 to retry"
+    elif [[ "$LADDER_TIME" -gt 0 ]]; then
+      log "softening $s: k1=$eff timed out before with $(_dur "$prev_budget"); retrying with the larger $(_dur "$LADDER_TIME")"
+    else
+      log "softening $s: k1=$eff timed out before with $(_dur "$prev_budget"); retrying uncapped"
+    fi
   fi
 
   if [[ "$skip01" -eq 0 ]]; then
@@ -351,6 +368,7 @@ run_cap() {
   "${cmd[@]}" || rc=$?
   if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
     log "softening $s: ladder hit $(_dur "$LADDER_CAP") cap; exporting best-so-far"
+    printf '%s\n' "$LADDER_TIME" > "$to_mark"   # resume skips unless budget raised
   elif [[ "$rc" -ne 0 ]]; then
     log "softening $s: lex-ladder failed (rc=$rc, see above); skipping this cap"
     add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")"
@@ -368,6 +386,7 @@ run_cap() {
   fi
   local closed=0
   [[ "$LB" -ge "$UB" ]] && closed=1
+  [[ "$closed" -eq 1 ]] && rm -f "$to_mark"
 
   # phase 2: optional independent SAT cross-check of the decisive UNSAT
   if [[ "$closed" -eq 1 && "${SAT_TIME%.*}" -gt 0 ]]; then
