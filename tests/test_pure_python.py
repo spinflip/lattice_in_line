@@ -180,3 +180,29 @@ def test_anneal_order_never_worse_than_seed():
     pos = np.empty(n, dtype=int); pos[np.asarray(perm)] = np.arange(n)
     assert sorted(perm) == list(range(n))
     assert fo.objective_value(W, pos, "cut") <= before + 1e-12
+
+
+def test_lex_heuristic_exits_early_when_cap_certified(tmp_path, monkeypatch):
+    # An interrupted sweep re-runs lex-heuristic on finished caps; it must not
+    # burn its full --time again once the cap's k2 is certified.
+    import types
+    j1 = tmp_path / "j1.txt"
+    j1.write_text("0 1\n1 2\n2 3\n")
+    j2 = tmp_path / "j2.txt"
+    j2.write_text("0 2\n1 3\n")
+    # pre-certify the cap k1=2: labeling with k2=2 recorded + k2=1 proven UNSAT
+    e2 = [(0, 2), (1, 3)]
+    st = bc.State(str(tmp_path), "t4__lex_j2__k1_2", 4, e2)
+    st.record_labeling([1, 2, 3, 4], "test")
+    st.record_unsat(1, "cpsat")
+    lb, ub = bc.State.window(st.read())
+    assert lb >= ub == 2                                  # certified
+    monkeypatch.setattr(bc, "run_lex_heuristic",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("SA ran despite certified cap")))
+    args = types.SimpleNamespace(
+        cluster="t4", edges_module="cluster_edges.py", edge_file=str(j1),
+        j2_file=str(j2), j2_cluster=None, j2_edges_module=None, k1=2,
+        state_dir=str(tmp_path), time=999, procs=2, workers=1, seed=0,
+        symmetry="reversal", fix_label1=None)
+    bc.cmd_lex_heuristic(args)                            # must return, not run SA

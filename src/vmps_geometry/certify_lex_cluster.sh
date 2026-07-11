@@ -51,6 +51,13 @@
 #   J2_EDGES_MODULE J2 table module for a named J2          (cluster_edges_NNN.py)
 #   CERT           path to bandwidth_certifier.py            (./bandwidth_certifier.py)
 #   PYTHON         interpreter                               (python3)
+#   RESUME         1 = resume an interrupted sweep on re-run: already-certified
+#                  caps skip the expensive phases 0-1 (pending cross-check and
+#                  the export still complete), and a finished phase-0 SA seed
+#                  is not repeated for a cap whose ladder is mid-flight. All
+#                  state accumulates per cap, so re-running the SAME command
+#                  continues from the first unfinished softening.
+#                  0 = re-run every phase regardless.                       (1)
 #   PLAN_ONLY      1 = print the campaign plan and exit without running   (0)
 #   CONFIRM        1 = after the plan, ask for keyboard y/N confirmation
 #                  (interactive only; the launchers set this)             (0)
@@ -107,6 +114,7 @@ FINAL_SYM="${FINAL_SYM:-reversal}"
 # Parallel softening sweep: every cap has its own per-k1 state file and there
 # is no cross-cap dependency (BASE_K1 is resolved once, read-only), so the
 # caps can run concurrently. Clamp per-cap threads so the total stays bounded.
+RESUME="${RESUME:-1}"
 SOFTEN_PARALLEL="${SOFTEN_PARALLEL:-0}"
 SOFTEN_JOBS="${SOFTEN_JOBS:-6}"
 SOFTEN_THREADS="${SOFTEN_THREADS:-24}"
@@ -294,16 +302,39 @@ run_cap() {
   local k1args=(--k1 "$eff")
   log "================  softening s=$s  ->  J1 cap k1=$eff  ================"
 
+  # Resumability: state accumulates per cap, so on a re-run after an interrupt
+  # a cap that is already CERTIFIED skips the expensive phases 0-1 entirely
+  # (phases 2-3 below still finish a pending cross-check and re-export), and a
+  # completed phase-0 SA seed (marker file) is not repeated for a cap whose
+  # ladder is still open. RESUME=0 re-runs everything.
+  local LB0 UB0 skip01=0
+  read -r LB0 UB0 < <(window "$lex_json")
+  if [[ "$RESUME" -eq 1 && "$UB0" -ge 0 && "$LB0" -ge "$UB0" ]]; then
+    skip01=1
+    log "softening $s: k1=$eff already CERTIFIED (k2*=$UB0) from a previous run; skipping phases 0-1"
+  fi
+
+  if [[ "$skip01" -eq 0 ]]; then
+
   # phase 0: parallel multi-start SA seed. Shares the lex state, so the ladder
   # below automatically warm-starts from the SA incumbent. This is the main
   # quality driver for large systems the ladder cannot close.
+  local heur_mark="$STATE_DIR/.lex_heur_done_${J2NAME}_k1_${eff}"
   if [[ "$HEUR_TIME" -gt 0 ]]; then
-    log "phase 0: lex-heuristic $(_dur "$HEUR_TIME") x ${PROCS} procs (parallel SA), k1=$eff"
-    "$PYTHON" "$CERT" lex-heuristic \
-      --cluster "$J1" --state-dir "$STATE_DIR" --edges-module "$EDGES_MODULE" \
-      "${J2_ARGS[@]}" "${k1args[@]}" \
-      --time "$HEUR_TIME" --procs "$PROCS" --workers "$WORKERS" --seed "$SEED" \
-      --symmetry "$SYMMETRY" || log "softening $s: lex-heuristic returned nonzero (continuing)"
+    if [[ "$RESUME" -eq 1 && -f "$heur_mark" ]]; then
+      log "phase 0: skipped (SA seed already completed in a previous run; ladder resumes from state)"
+    else
+      log "phase 0: lex-heuristic $(_dur "$HEUR_TIME") x ${PROCS} procs (parallel SA), k1=$eff"
+      if "$PYTHON" "$CERT" lex-heuristic \
+           --cluster "$J1" --state-dir "$STATE_DIR" --edges-module "$EDGES_MODULE" \
+           "${J2_ARGS[@]}" "${k1args[@]}" \
+           --time "$HEUR_TIME" --procs "$PROCS" --workers "$WORKERS" --seed "$SEED" \
+           --symmetry "$SYMMETRY"; then
+        touch "$heur_mark"
+      else
+        log "softening $s: lex-heuristic returned nonzero (continuing)"
+      fi
+    fi
   fi
 
   local capnote=""
@@ -325,6 +356,8 @@ run_cap() {
     add_summary "$eff" "$(printf '  s=%-2s  k1=%-3s  k2=%-5s  %s' "$s" "$eff" "ERR" "lex-ladder-failed")"
     return 0
   fi
+
+  fi   # skip01
 
   local LB UB
   read -r LB UB < <(window "$lex_json")

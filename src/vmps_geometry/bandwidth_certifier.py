@@ -1131,6 +1131,14 @@ def cmd_lex_heuristic(args):
     print(f"[lex] heuristic with hard J1 cap k1={k1}; J2 has {len(e2)} edges")
     st2.record_math_lb(combinatorial_lb(n, e2))
     cur = st2.read()
+    # resumability: an interrupted sweep re-runs this command. If this cap is
+    # already certified there is nothing left to seed -- exit instead of
+    # burning the full --time again.
+    lb0, ub0 = State.window(cur)
+    if ub0 is not None and lb0 >= ub0:
+        print(f"[lex-heuristic] k2 already certified for this cap (k2*={ub0}); "
+              f"nothing to seed — skipping")
+        return
     # start from the current lex best if J1-feasible, else the J1 ordering,
     # else a CP-SAT feasible labeling under the J1 cap.
     init = cur["best_labeling"]
