@@ -246,3 +246,25 @@ def test_compute_profile_known_value():
     import vmps_geometry.bandwidth_heuristics_benchmark as bhb
     path = [(0, 1), (1, 2), (2, 3)]
     assert bhb.compute_profile(path, [0, 1, 2, 3]) == 3      # each left-reach = 1
+
+
+def test_compute_cutwidth_path_cycle_and_bound():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmss import _n  # noqa  (placeholder removed below)
+
+
+def test_compute_cutwidth_path_cycle_and_bound():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    path = [(i, i + 1) for i in range(9)]           # 10-node path
+    assert bhb.compute_cutwidth(path, list(range(10))) == 1
+    cyc = [(i, (i + 1) % 10) for i in range(10)]    # 10-cycle
+    assert bhb.compute_cutwidth(cyc, list(range(10))) == 2
+    # cut_max <= bandwidth * max_degree for any ordering (window bound)
+    for g in ("C60", "pyrochlore64", "kagomeBtorus48_4x4"):
+        _, edges = bhb.normalize_edges(CLUSTER_EDGES[g])
+        adj = bhb.build_adjacency(edges)
+        delta = max(len(a) for a in adj)
+        order = bhb.cuthill_mckee_ordering(edges)
+        B = bhb.compute_bandwidth(edges, order)
+        assert bhb.compute_cutwidth(edges, order) <= B * delta

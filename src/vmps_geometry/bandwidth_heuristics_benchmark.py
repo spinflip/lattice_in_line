@@ -10,6 +10,11 @@ Metrics reported per (graph, algorithm):
   profile    sum_v ( pos_v - min_{u in N(v) u {v}} pos_u )
                                               the classic sparse-matrix
                                               envelope/profile (row leftward reach)
+  cut_max    max_cut #{edges crossing the cut}   the UNWEIGHTED cutwidth = the
+                                              MPO bond-dimension proxy (largest
+                                              number of Hamiltonian terms in flight
+                                              across any bond); for these lattices
+                                              cut_max is ~1-2x the bandwidth
 
 IMPORTANT — reversal invariance: reversing the whole ordering maps pos -> n-1-pos,
 which leaves every |pos_u - pos_v| unchanged. So BOTH bandwidth and avg_range are
@@ -73,6 +78,26 @@ def compute_profile(edges: EdgeList, ordering: List[int]) -> int:
                 leftmost = pos[u]
         total += p - leftmost
     return total
+
+
+def compute_cutwidth(edges: EdgeList, ordering: List[int]) -> int:
+    """cut_max: the largest number of edges crossing any of the n-1 chain cuts
+    (unweighted cutwidth) -- the MPO bond-dimension proxy. Computed by treating
+    each edge as a +1/-1 interval on the cut axis and prefix-summing."""
+    _, normalized = normalize_edges(edges)
+    pos = {v: i for i, v in enumerate(ordering)}
+    n = len(ordering)
+    inc = [0] * (n + 1)
+    for u, v in normalized:
+        a, b = sorted((pos[u], pos[v]))
+        inc[a] += 1
+        inc[b] -= 1
+    cur = mx = 0
+    for c in range(n - 1):
+        cur += inc[c]
+        if cur > mx:
+            mx = cur
+    return mx
 
 
 def _bfs_dist(adj, root: int) -> Dict[int, int]:
@@ -227,6 +252,7 @@ def run_one(edges: EdgeList, alg: str) -> Dict:
         "bandwidth": compute_bandwidth(edges, ordering),
         "avg_range": compute_envelope(edges, ordering),
         "profile": compute_profile(edges, ordering),
+        "cut_max": compute_cutwidth(edges, ordering),
         "seconds": dt,
     }
 
@@ -239,7 +265,8 @@ def main() -> None:
                          "(default: all in cluster_edges.py)")
     ap.add_argument("--algorithms", default=",".join(DEFAULT_ORDER),
                     help=f"comma-separated subset of {list(ALGORITHMS)}")
-    ap.add_argument("--sort", choices=["name", "bandwidth", "avg_range", "profile"],
+    ap.add_argument("--sort",
+                    choices=["name", "bandwidth", "cut_max", "avg_range", "profile"],
                     default="bandwidth", help="row sort within each per-graph table")
     ap.add_argument("--summary-only", action="store_true",
                     help="print only the aggregate summary, not per-graph tables")
@@ -269,19 +296,22 @@ def main() -> None:
 
         if not args.summary_only:
             print(f"\n=== {g}   (n={n}, edges={m}) ===")
-            print(f"  {'algorithm':10s} {'bandwidth':>9s} {'avg_range':>10s} "
-                  f"{'profile':>9s} {'time_s':>10s}")
+            print(f"  {'algorithm':10s} {'bandwidth':>9s} {'cut_max':>8s} "
+                  f"{'avg_range':>10s} {'profile':>9s} {'time_s':>10s}")
             keyf = {"name": lambda r: r["algorithm"],
-                    "bandwidth": lambda r: (r["bandwidth"], r["avg_range"]),
+                    "bandwidth": lambda r: (r["bandwidth"], r["cut_max"]),
+                    "cut_max": lambda r: (r["cut_max"], r["bandwidth"]),
                     "avg_range": lambda r: (r["avg_range"], r["bandwidth"]),
                     "profile": lambda r: (r["profile"], r["bandwidth"])}[args.sort]
             bw_best = min(r["bandwidth"] for r in res)
+            ct_best = min(r["cut_max"] for r in res)
             av_best = min(r["avg_range"] for r in res)
             pf_best = min(r["profile"] for r in res)
             for r in sorted(res, key=keyf):
                 star = lambda val, best: "*" if val <= best + 1e-9 else " "
                 print(f"  {r['algorithm']:10s} "
                       f"{r['bandwidth']:8d}{star(r['bandwidth'], bw_best)} "
+                      f"{r['cut_max']:7d}{star(r['cut_max'], ct_best)} "
                       f"{r['avg_range']:9.4g}{star(r['avg_range'], av_best)} "
                       f"{r['profile']:8d}{star(r['profile'], pf_best)} "
                       f"{r['seconds']:10.4f}")
@@ -290,16 +320,17 @@ def main() -> None:
     print("\n" + "=" * 78)
     print(f"SUMMARY over {len(names)} graph(s): mean metrics and #best (ties count)")
     print("=" * 78)
-    print(f"  {'algorithm':10s} {'mean_bw':>9s} {'mean_avgR':>10s} {'mean_prof':>10s} "
-          f"{'#bw':>5s} {'#avgR':>6s} {'#prof':>6s} {'tot_s':>9s}")
+    print(f"  {'algorithm':10s} {'mean_bw':>9s} {'mean_cut':>9s} {'mean_avgR':>10s} "
+          f"{'mean_prof':>10s} {'#bw':>5s} {'#cut':>5s} {'#avgR':>6s} {'#prof':>6s} "
+          f"{'tot_s':>9s}")
     by_alg: Dict[str, List[Dict]] = {a: [] for a in algs}
     for r in rows:
         by_alg[r["algorithm"]].append(r)
     # per-graph winners
-    wins = {a: [0, 0, 0] for a in algs}
+    wins = {a: [0, 0, 0, 0] for a in algs}
     for g in names:
         gr = [r for r in rows if r["graph"] == g]
-        for j, key in enumerate(("bandwidth", "avg_range", "profile")):
+        for j, key in enumerate(("bandwidth", "cut_max", "avg_range", "profile")):
             best = min(r[key] for r in gr)
             for r in gr:
                 if r[key] <= best + 1e-9:
@@ -307,12 +338,13 @@ def main() -> None:
     for a in algs:
         rs = by_alg[a]
         mb = sum(r["bandwidth"] for r in rs) / len(rs)
+        mc = sum(r["cut_max"] for r in rs) / len(rs)
         ma = sum(r["avg_range"] for r in rs) / len(rs)
         mp = sum(r["profile"] for r in rs) / len(rs)
         ts = sum(r["seconds"] for r in rs)
         w = wins[a]
-        print(f"  {a:10s} {mb:9.3f} {ma:10.4g} {mp:10.1f} "
-              f"{w[0]:5d} {w[1]:6d} {w[2]:6d} {ts:9.3f}")
+        print(f"  {a:10s} {mb:9.3f} {mc:9.3f} {ma:10.4g} {mp:10.1f} "
+              f"{w[0]:5d} {w[1]:5d} {w[2]:6d} {w[3]:6d} {ts:9.3f}")
     print("\n  note: bandwidth and avg_range are reversal-invariant -> cm and rcm")
     print("  match on both (rcm only helps 'profile', the matrix envelope). king and")
     print("  sloan are wavefront/profile reducers: strong on avg_range/profile but they")
@@ -320,8 +352,8 @@ def main() -> None:
 
     if args.csv:
         import csv
-        cols = ["graph", "n", "m", "algorithm", "bandwidth", "avg_range",
-                "profile", "seconds"]
+        cols = ["graph", "n", "m", "algorithm", "bandwidth", "cut_max",
+                "avg_range", "profile", "seconds"]
         with open(args.csv, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=cols)
             w.writeheader()
