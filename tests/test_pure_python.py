@@ -206,3 +206,43 @@ def test_lex_heuristic_exits_early_when_cap_certified(tmp_path, monkeypatch):
         state_dir=str(tmp_path), time=999, procs=2, workers=1, seed=0,
         symmetry="reversal", fix_label1=None)
     bc.cmd_lex_heuristic(args)                            # must return, not run SA
+
+
+def test_bandwidth_heuristics_valid_and_optimal_on_path():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    n = 20
+    path = [(i, i + 1) for i in range(n - 1)]
+    for name, fn in bhb.ALGORITHMS.items():
+        order = fn(path)
+        assert sorted(order) == list(range(n)), f"{name}: not a permutation"
+        # every heuristic must recover the trivial optimum (bandwidth 1) on a path
+        assert bhb.compute_bandwidth(path, order) == 1, f"{name}: bw != 1 on path"
+
+
+def test_bandwidth_heuristics_handle_disconnected():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    # two disjoint triangles
+    edges = [(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]
+    for name, fn in bhb.ALGORITHMS.items():
+        order = fn(edges)
+        assert sorted(order) == list(range(6)), f"{name}: bad permutation"
+
+
+def test_cm_rcm_reversal_invariance_and_profile():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    _, edges = bhb.normalize_edges(CLUSTER_EDGES["pyrochlore64"])
+    cm = bhb.cuthill_mckee_ordering(edges)
+    rcm = bhb.reverse_cuthill_mckee_ordering(edges)
+    # reversal leaves bandwidth and avg_range unchanged...
+    assert bhb.compute_bandwidth(edges, cm) == bhb.compute_bandwidth(edges, rcm)
+    assert abs(bhb.compute_envelope(edges, cm)
+               - bhb.compute_envelope(edges, rcm)) < 1e-9
+    # ...but rcm never has a worse matrix profile (its whole purpose)
+    assert bhb.compute_profile(edges, rcm) <= bhb.compute_profile(edges, cm)
+
+
+def test_compute_profile_known_value():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    path = [(0, 1), (1, 2), (2, 3)]
+    assert bhb.compute_profile(path, [0, 1, 2, 3]) == 3      # each left-reach = 1
