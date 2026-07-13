@@ -1,7 +1,5 @@
 cd "$(dirname "$0")"
 
-CLUSTER="${1:-}"
-
 # DEFAULT_CLUSTERS=(
 #   icosa cubocta C12 C20 C24 C26 C28 C30 C36 C40 C60
 #   pyrochlore48a pyrochlore48b pyrochlore48c pyrochlore48d pyrochlore64
@@ -11,8 +9,10 @@ CLUSTER="${1:-}"
 
 DEFAULT_CLUSTERS=(hyperkagome48_4x1x1 hyperkagome48_2x2x1 hyperkagome60_5x1x1 hyperkagome72_6x1x1)
 
-if [[ -n "$CLUSTER" ]]; then
-  CLUSTERS=("$CLUSTER")
+# Accept any number of cluster names as arguments (they run sequentially in one
+# background job); with no arguments, fall back to DEFAULT_CLUSTERS.
+if [[ $# -gt 0 ]]; then
+  CLUSTERS=("$@")
 else
   CLUSTERS=("${DEFAULT_CLUSTERS[@]}")
 fi
@@ -21,26 +21,43 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
+# MODE (plain|ss|cutwidth) is inherited by the env calls below; tag the per-
+# cluster log so a cutwidth run never overwrites the bandwidth run's log.
+MODE="${MODE:-plain}"
+LOGTAG=""; [[ "$MODE" != "plain" ]] && LOGTAG="_$MODE"
+# run-directory prefix: cutwidth -> cw_run_, everything else -> bw_run_
+RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
+
+# Per-mode budgets (see certify_large.sh for the rationale): cutwidth favours the
+# SA heuristic and shortens each CP-SAT decision (its UNSAT side rarely closes).
+if [[ "$MODE" == "cutwidth" ]]; then
+  TIME_HEUR_D=7200       # 2h SA
+  TIME_PER_K_D=3600      # 1h per CP-SAT decision
+else
+  TIME_HEUR_D=3600       # 1h
+  TIME_PER_K_D=14400     # 4h
+fi
+
 CENV=(
-  TIME_HEUR=3600 STALL=300 TIME_OPT=3600 TIME_PER_K=14400
+  TIME_HEUR=$TIME_HEUR_D STALL=300 TIME_OPT=3600 TIME_PER_K=$TIME_PER_K_D
   SAT_TIME=3600 WORKERS=16 PROCS=160 JOBS_PER_SIDE=2 SEED=1
 )
 # show a representative plan (same budgets for every cluster) and confirm
-if ! env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_${CLUSTERS[0]}" PLAN_ONLY=1 CONFIRM=1 \
+if ! env "${CENV[@]}" STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_${CLUSTERS[0]}" PLAN_ONLY=1 CONFIRM=1 \
      ./certify_cluster.sh "${CLUSTERS[0]}"; then
   echo "batch not launched."; exit 1
 fi
 
 nohup bash -c '
-  DATA_DIR="$1"; NENV="$2"; shift 2
+  DATA_DIR="$1"; LOGTAG="$2"; RUNPREFIX="$3"; NENV="$4"; shift 4
   CENV=( "${@:1:$NENV}" ); shift "$NENV"
   for c in "$@"; do
     echo "=== $c ==="
-    env "${CENV[@]}" STATE_DIR="$DATA_DIR/bw_run_$c" \
-      ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_$c.log" 2>&1
+    env "${CENV[@]}" STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_$c" \
+      ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_${c}${LOGTAG}.log" 2>&1
   done
-' bash "$DATA_DIR" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small.log" 2>&1 &
+' bash "$DATA_DIR" "$LOGTAG" "$RUNPREFIX" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small${LOGTAG}.log" 2>&1 &
 
 echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"
-for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_$c.log"; done
-echo "  (launcher wrapper log: $DATA_DIR/certify_small.log)"
+for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_${c}${LOGTAG}.log"; done
+echo "  (launcher wrapper log: $DATA_DIR/certify_small${LOGTAG}.log)"

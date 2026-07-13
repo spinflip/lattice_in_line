@@ -13,11 +13,33 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
 mkdir -p "$DATA_DIR"
 
+# MODE (plain|ss|cutwidth) is inherited by env below; tag the launcher log so a
+# cutwidth run never overwrites the bandwidth run's log. e.g.
+#   MODE=cutwidth ./certify_large.sh C60  ->  certify_C60_cutwidth.log
+MODE="${MODE:-plain}"
+LOGTAG=""; [[ "$MODE" != "plain" ]] && LOGTAG="_$MODE"
+# run-directory prefix: cutwidth -> cw_run_, everything else -> bw_run_ (so a
+# cutwidth campaign gets its own state dir and never mixes with the bandwidth one)
+RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
+
+# Per-mode time budgets. Bandwidth spends most of its budget on the CP-SAT
+# decision ladder (both sides can close). Cutwidth has a WEAK lower bound, so the
+# UNSAT side can't close for large graphs -- the useful result is the SA layout.
+# So for cutwidth we pour time into the SA heuristic and shorten each CP-SAT
+# decision (enough for SAT-side improvements, not 12h of hopeless UNSAT).
+if [[ "$MODE" == "cutwidth" ]]; then
+  TIME_HEUR_D=43200      # 12h SA (the workhorse)
+  TIME_PER_K_D=7200      #  2h per CP-SAT decision
+else
+  TIME_HEUR_D=14400      #  4h
+  TIME_PER_K_D=43200     # 12h
+fi
+
 CENV=(
-  STATE_DIR="$DATA_DIR/bw_run_${CLUSTER}"
-  TIME_HEUR=14400 STALL=3600
+  STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_${CLUSTER}"
+  TIME_HEUR=$TIME_HEUR_D STALL=3600
   TIME_OPT=14400
-  TIME_PER_K=43200
+  TIME_PER_K=$TIME_PER_K_D
   SAT_TIME=0
   WORKERS=16 PROCS=160 JOBS_PER_SIDE=4
   SEED=1
@@ -26,10 +48,10 @@ CENV=(
 if ! env "${CENV[@]}" PLAN_ONLY=1 CONFIRM=1 ./certify_cluster.sh "$CLUSTER"; then
   echo "campaign not launched."; exit 1
 fi
-nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_${CLUSTER}.log" 2>&1 &
+nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_${CLUSTER}${LOGTAG}.log" 2>&1 &
 
 echo "launched large campaign for $CLUSTER (pid $!)"
-echo "  campaign log: $DATA_DIR/certify_${CLUSTER}.log"
+echo "  campaign log: $DATA_DIR/certify_${CLUSTER}${LOGTAG}.log"
 
 ## extract mid-run:
 #python -m vmps_geometry.bandwidth_certifier export --cluster "$CLUSTER" --state-dir "bw_run_${CLUSTER}" > "current_best_${CLUSTER}.json"
