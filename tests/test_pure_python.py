@@ -402,3 +402,29 @@ def test_cw_polish_holds_cutwidth_and_minimizes_range():
     assert tr == bc.total_range(lab, E)                # reported range consistent
     if status == "OPTIMAL":
         assert tr == lb                                # proven minimum range
+
+
+def test_gather_permutations_builds_map(tmp_path):
+    import json
+    import vmps_geometry.gather_permutations as gp
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    _v, E = bhb.normalize_edges(CLUSTER_EDGES["C12"])
+    n = 12
+    lab = list(range(1, n + 1))                      # identity, 1-based
+    run = tmp_path / "cw_run_C12"
+    run.mkdir()
+    (run / "C12__cw.json").write_text(json.dumps({
+        "cluster": "C12__cw", "n": n, "num_edges": len(E),
+        "best_labeling": lab, "sum_range": bc.total_range(lab, E),
+        "ub": bc.cutwidth_of(lab, E), "math_lb": 2,
+        "unsat": {"1": "math"}, "history": [],
+    }))
+    recs = gp.gather(str(tmp_path), "cw")
+    assert len(recs) == 1 and recs[0]["cluster"] == "C12"
+    assert recs[0]["perm0"] == {i: i for i in range(n)}       # identity -> 0-based
+    assert recs[0]["stats"]["cutwidth"] == bc.cutwidth_of(lab, E)
+    # the rendered module re-parses to the same permutation
+    ns = {}
+    exec(compile(gp.render(recs, "cw", str(tmp_path)), "<g>", "exec"), ns)
+    assert ns["CUSTOM_PERMUTATIONS"]["C12"] == {i: i for i in range(n)}
