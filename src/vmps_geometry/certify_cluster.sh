@@ -12,6 +12,9 @@
 #   TIME_HEUR     heuristic phase seconds              (3600)
 #   TIME_OPT      CP-SAT optimize phase seconds        (3600)
 #   TIME_PER_K    per decision-problem seconds         (14400)
+#   LADDER_TIME   (cutwidth mode) overall wall-clock cap on the phase-4 CP-SAT
+#                 decision ladder; 0 = unlimited. Bounds runaway ladders on dense
+#                 graphs with a wide cutwidth window.                     (14400)
 #   WORKERS       CP-SAT threads per decide job        (16)
 #   PROCS         heuristic processes                  (40)
 #   JOBS_PER_SIDE parallel decide jobs per window end  (2)
@@ -78,6 +81,9 @@ SEED="${SEED:-1}"
 TIME_HEUR="${TIME_HEUR:-3600}"
 TIME_OPT="${TIME_OPT:-3600}"
 TIME_PER_K="${TIME_PER_K:-14400}"
+# (cutwidth mode) overall wall-clock cap on the CP-SAT decision ladder, so a wide
+# window on a dense graph cannot grind for tens of hours; 0 = unlimited.
+LADDER_TIME="${LADDER_TIME:-14400}"
 WORKERS="${WORKERS:-16}"
 PROCS="${PROCS:-40}"
 JOBS_PER_SIDE="${JOBS_PER_SIDE:-2}"
@@ -188,7 +194,7 @@ print_plan() {
     log "  note      : cutwidth lower bounds are weak; window closes only for"
     log "              small clusters (~n<=25-30), else a heuristic upper bound"
     log "  phase 1  heuristic SA upper bound   : $(_dur "$TIME_HEUR")  (stall ${STALL}s)   CPUs: ${PROCS}  (parallel SA chains)"
-    log "  phase 4  CP-SAT decision ladder     : $(_dur "$TIME_PER_K") per k-decision   CPUs: ${WORKERS}  (solver threads)"
+    log "  phase 4  CP-SAT decision ladder     : $(_dur "$TIME_PER_K") per k-decision, total cap $(_budget "$LADDER_TIME")   CPUs: ${WORKERS}  (solver threads)"
     log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
     log "  phase 6  range polish at final cut  : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
   else
@@ -306,6 +312,7 @@ if [[ "$MODE" == "cutwidth" ]]; then
     # cw-run does the whole thing: math LB, SA upper bound, then the alternating
     # CP-SAT decision ladder. STALL feeds the heuristic; PROCS the SA pool.
     C cw-run --heur-time "$TIME_HEUR" --time-per-k "$TIME_PER_K" \
+      --ladder-time "$LADDER_TIME" \
       --workers "$WORKERS" --procs "$PROCS" --stall "$STALL" --seed "$SEED" \
       --symmetry "$SYMMETRY"
   fi

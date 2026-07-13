@@ -3383,15 +3383,29 @@ def cmd_cw_run(args):
                               procs=args.procs, stall=args.stall)
         st.record_labeling(lab, "cw-heuristic")
         cur = st.read()
+    # Overall wall-clock budget for the whole ladder. Without it, a wide window
+    # (dense graph) marches through dozens of decisions at up to time_per_k each
+    # -> tens of hours. ladder_time <= 0 means unlimited (old behaviour).
+    ladder_time = getattr(args, "ladder_time", 0) or 0
+    t0 = time.time()
     side = 0
     while True:
+        if ladder_time > 0 and time.time() - t0 > ladder_time:
+            print(f"[cw-run] ladder time budget ({ladder_time / 3600:.2f}h) "
+                  f"exhausted; stopping with the best known layout")
+            break
         lb, ub = State.window(cur)
         if ub is not None and lb >= ub:
             break
         k = ub - 1 if (side == 0 and ub is not None) else lb
-        print(f"[cw-run] window [{lb},{ub}] -> deciding cutwidth<={k}")
+        print(f"[cw-run] window [{lb},{ub}] -> deciding cutwidth<={k} "
+              f"({(time.time() - t0) / 3600:.2f}h into ladder)")
         hint = cur["best_labeling"] if side == 0 else None
-        res, lab, _ = cpsat_decide_cutwidth(n, edges, k, args.time_per_k,
+        # never let a single decision overrun the remaining ladder budget
+        dt = args.time_per_k
+        if ladder_time > 0:
+            dt = min(dt, max(1.0, ladder_time - (time.time() - t0)))
+        res, lab, _ = cpsat_decide_cutwidth(n, edges, k, dt,
                                             args.workers, hint=hint,
                                             symmetry=args.symmetry,
                                             fix_label1=args.fix_label1)
@@ -3809,6 +3823,10 @@ def main():
     p = sub.add_parser("cw-run"); common(p)
     p.add_argument("--heur-time", type=float, default=120.0)
     p.add_argument("--time-per-k", type=float, default=300.0)
+    p.add_argument("--ladder-time", type=float, default=14400.0,
+                   help="overall wall-clock budget for the CP-SAT decision "
+                        "ladder (phase 4); <=0 means unlimited. Prevents a wide "
+                        "cutwidth window from running for tens of hours.")
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--procs", type=int, default=1)
     p.add_argument("--stall", type=float, default=None)
