@@ -324,6 +324,68 @@ def test_sa_cutwidth_returns_valid_permutation_and_optimal_path():
     assert cw == bc.cutwidth_of(lab, path) == 1
 
 
+# ----- bandwidth<->cutwidth correlation script -----
+
+def test_correlation_pearson_spearman_match_numpy():
+    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=50)
+    y = 2.0 * x + rng.normal(scale=0.3, size=50)          # strong linear
+    assert abs(bcc.pearson(x, y) - np.corrcoef(x, y)[0, 1]) < 1e-12
+    # perfect monotone (nonlinear) -> Spearman 1, Pearson < 1
+    z = np.arange(20, dtype=float)
+    w = z ** 3
+    assert abs(bcc.spearman(z, w) - 1.0) < 1e-12
+    assert bcc.pearson(z, w) < 1.0
+    # constant input -> nan, no crash
+    assert np.isnan(bcc.pearson(np.ones(5), np.arange(5.0)))
+
+
+def test_correlation_rankdata_handles_ties():
+    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    r = bcc._rankdata(np.array([10.0, 10.0, 20.0, 5.0]))
+    # two 10s share rank (0+1)/2 = 0.5; 5 is rank 0-> wait lowest gets 0
+    assert list(r) == [1.5, 1.5, 3.0, 0.0]
+
+
+def test_correlation_collect_points_shapes():
+    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    names = ["C12", "C20"]
+    algs = ["identity", "cm", "rcm"]
+    # heuristics only: one point per (graph, algorithm)
+    allpts = bcc.collect_points(names, algs, ["heuristics"], "all")
+    assert len(allpts) == len(names) * len(algs)
+    assert all(p["cutwidth"] >= 1 and p["bandwidth"] >= 1 for p in allpts)
+    pg = bcc.collect_points(names, algs, ["heuristics"], "per-graph")
+    assert len(pg) == len(names)
+    for g in names:                     # best-of never exceeds any single ordering
+        best_bw = min(p["bandwidth"] for p in allpts if p["graph"] == g)
+        assert next(p for p in pg if p["graph"] == g)["bandwidth"] == best_bw
+
+
+def test_correlation_includes_optimized_sources():
+    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    from vmps_geometry.permutations_sat import CUSTOM_PERMUTATIONS as SAT
+    # C12 has a SAT-certified ordering -> a 'sat' category point must appear,
+    # and adding sources can only lower (never raise) the per-graph best-of.
+    assert "C12" in SAT
+    allpts = bcc.collect_points(["C12"], ["identity"], ["heuristics", "sat"], "all")
+    cats = {p["category"] for p in allpts}
+    assert "sat" in cats and "heuristic" in cats
+    heur_only = bcc.collect_points(["C12"], ["identity"], ["heuristics"], "per-graph")
+    with_sat = bcc.collect_points(["C12"], ["identity"], ["heuristics", "sat"], "per-graph")
+    assert with_sat[0]["bandwidth"] <= heur_only[0]["bandwidth"]
+    assert with_sat[0]["cutwidth"] <= heur_only[0]["cutwidth"]
+
+
+def test_correlation_perm_to_ordering_roundtrip():
+    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    verts = [0, 1, 2, 3]
+    assert bcc._perm_to_ordering({0: 2, 1: 0, 2: 3, 3: 1}, verts) == [1, 3, 0, 2]
+    assert bcc._perm_to_ordering({0: 0, 1: 1}, verts) is None          # wrong size
+    assert bcc._perm_to_ordering({0: 0, 1: 1, 2: 1, 3: 3}, verts) is None  # dup pos
+
+
 def test_cw_polish_holds_cutwidth_and_minimizes_range():
     import pytest
     pytest.importorskip("ortools")
