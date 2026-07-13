@@ -43,11 +43,24 @@ def resolve_geometry_path(path) -> Path:
     if raw.is_file():
         return raw
     parts = raw.parts
+    if "vmps_geometry" in parts:
+        idx = parts.index("vmps_geometry")
+        candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
+        if candidate.is_file():
+            return candidate
+        if candidate.suffix == ".py":
+            aliased = candidate.with_name(candidate.name.replace("-", "_"))
+            if aliased.is_file():
+                return aliased
     if "geometry" in parts:
         idx = parts.index("geometry")
         candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
         if candidate.is_file():
             return candidate
+        if candidate.suffix == ".py":
+            aliased = candidate.with_name(candidate.name.replace("-", "_"))
+            if aliased.is_file():
+                return aliased
     return raw
 
 
@@ -135,6 +148,8 @@ def _resolve_ordering_permutation(
     key: str,
 ) -> Tuple[List[int], str]:
     ordering_text = str(ordering).strip()
+    if ordering_text.lower() in {"none", "identity", "raw"}:
+        return list(range(n_sites)), ordering_text.lower()
     ordering_path = resolve_geometry_path(ordering_text)
     if ordering_path.is_file():
         try:
@@ -155,6 +170,21 @@ def _resolve_ordering_permutation(
         graph_ordering_permutation(n_sites, edges, method=ordering_text, start=0),
         ordering_text,
     )
+
+
+def _layout_stats(edges: Sequence[Tuple[int, int]]) -> Tuple[int, float, int]:
+    spans = [abs(int(j) - int(i)) for i, j in edges]
+    max_site = max((max(int(i), int(j)) for i, j in edges), default=0)
+    cut_width = max(
+        (
+            sum(1 for i, j in edges if min(int(i), int(j)) <= cut < max(int(i), int(j)))
+            for cut in range(max_site)
+        ),
+        default=0,
+    )
+    bandwidth = max(spans, default=0)
+    envelope = (sum(spans) / len(spans)) if spans else 0.0
+    return bandwidth, envelope, cut_width
 
 
 def cluster_ordering_permutation(name: str, *, ordering: str = "rcm") -> List[int]:
@@ -201,10 +231,8 @@ def _ordered_cluster_edges(
     if verbose:
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{name} ordering ({ordering_label}): {perm_str}")
-        spans = [j - i for i, j in relabeled]
-        bandwidth = max(spans, default=0)
-        envelope = (sum(spans) / len(spans)) if spans else 0.0
-        print(f"{name} bandwidth={bandwidth}, envelope={envelope:.2f}")
+        bandwidth, envelope, cut_width = _layout_stats(relabeled)
+        print(f"{name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
@@ -569,15 +597,13 @@ def _ordered_cluster_file_edges(
         cluster_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{cluster_path.name} ordering ({ordering_label}): {perm_str}")
-        spans = [j - i for i, j, _ in relabeled]
-        bandwidth = max(spans, default=0)
-        envelope = (sum(spans) / len(spans)) if spans else 0.0
+        bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
         counts = {}
         for _, _, coupling in weighted_edges:
             counts[coupling] = counts.get(coupling, 0) + 1
         coupling_summary = ", ".join(f"J={coupling:g}: {count}" for coupling, count in sorted(counts.items()))
         print(f"{cluster_path.name}: L={L}, edges={len(weighted_edges)}, {coupling_summary}")
-        print(f"{cluster_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}")
+        print(f"{cluster_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
@@ -809,9 +835,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
     unit_cell_path = resolve_geometry_path(path)
     perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
     print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
-    spans = [j - i for i, j, _ in relabeled]
-    bandwidth = max(spans, default=0)
-    envelope = (sum(spans) / len(spans)) if spans else 0.0
+    bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
     counts = {}
     for _, _, hopping in weighted_edges:
         counts[hopping] = counts.get(hopping, 0) + 1
@@ -821,7 +845,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
         f"{unit_cell_path.name}: L={L}, boundary={_normalize_boundary(boundary)}, "
         f"edges={len(weighted_edges)}, {hopping_summary}"
     )
-    print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}")
+    print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
     print(f"{unit_cell_path.name} sublattice={pattern}")
     return out, ordered_sublattice
 
@@ -861,9 +885,7 @@ def _ordered_unit_cell_file_edges(
         unit_cell_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
-        spans = [j - i for i, j, _ in relabeled]
-        bandwidth = max(spans, default=0)
-        envelope = (sum(spans) / len(spans)) if spans else 0.0
+        bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
         counts = {}
         for _, _, coupling in weighted_edges:
             counts[coupling] = counts.get(coupling, 0) + 1
@@ -872,7 +894,7 @@ def _ordered_unit_cell_file_edges(
             f"{unit_cell_path.name}: L={L}, boundary={_normalize_boundary(boundary)}, "
             f"edges={len(weighted_edges)}, {coupling_summary}"
         )
-        print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}")
+        print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
