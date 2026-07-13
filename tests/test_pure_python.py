@@ -428,3 +428,17 @@ def test_gather_permutations_builds_map(tmp_path):
     ns = {}
     exec(compile(gp.render(recs, "cw", str(tmp_path)), "<g>", "exec"), ns)
     assert ns["CUSTOM_PERMUTATIONS"]["C12"] == {i: i for i in range(n)}
+
+
+def test_analyze_mpo_parse_and_correlate():
+    import vmps_geometry.analyze_mpo_correlation as amc
+    p = amc._default_file("permutations_sat.py")            # tracked, stable
+    recs = amc.parse_file(p, "bw")
+    assert len(recs) > 20
+    by = {r["cluster"]: r for r in recs}
+    # C12 comment stats are fixed in the tracked file
+    assert by["C12"]["bandwidth"] == 4 and by["C12"]["cutwidth"] == 6
+    assert by["C12"]["daux_max"] == 6
+    assert all(r["source"] == "bw" for r in recs)
+    out = amc.correlations(recs)                             # must not raise
+    assert 0.0 <= out["cut_r"] <= 1.0 and out["n"] > 20

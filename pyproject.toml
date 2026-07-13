@@ -11,6 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
     "numpy",
+    "networkx",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,7 @@ vmps-build-nnn-tables = "vmps_geometry.build_cluster_edges_NNN:main"
 vmps-bandwidth-benchmark = "vmps_geometry.bandwidth_heuristics_benchmark:main"
 vmps-bandwidth-cutwidth-correlation = "vmps_geometry.bandwidth_cutwidth_correlation:main"
 vmps-gather-permutations = "vmps_geometry.gather_permutations:main"
+vmps-analyze-mpo-correlation = "vmps_geometry.analyze_mpo_correlation:main"
 vmps-qubo-bandwidth = "vmps_geometry.qubo.bandwidth_qubo_tsq:main"
 vmps-qubo-classical-compare = "vmps_geometry.qubo.bandwidth_classical_compare:main"
 vmps-qubo-sweep = "vmps_geometry.qubo.sweep_bandwidth_qubo_tsq:main"
