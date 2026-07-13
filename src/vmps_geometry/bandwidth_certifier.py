@@ -3388,7 +3388,12 @@ def cmd_cw_run(args):
     # -> tens of hours. ladder_time <= 0 means unlimited (old behaviour).
     ladder_time = getattr(args, "ladder_time", 0) or 0
     t0 = time.time()
-    side = 0
+    # Retire a side once its decision times out: for a wide window the SAT side
+    # (lower the UB) only gets harder as ub falls, so retrying k=ub-1 after every
+    # UNSAT success just burns time (observed: 15 decisions, UB never moved).
+    # Work the SAT side until it succeeds/gives up, then let the UNSAT side raise
+    # the LB with the remaining budget -> a tighter certified interval.
+    sat_dead = unsat_dead = False
     while True:
         if ladder_time > 0 and time.time() - t0 > ladder_time:
             print(f"[cw-run] ladder time budget ({ladder_time / 3600:.2f}h) "
@@ -3397,7 +3402,14 @@ def cmd_cw_run(args):
         lb, ub = State.window(cur)
         if ub is not None and lb >= ub:
             break
-        k = ub - 1 if (side == 0 and ub is not None) else lb
+        if not sat_dead and ub is not None:
+            side = 0                         # try to lower the upper bound
+        elif not unsat_dead:
+            side = 1                         # try to raise the lower bound
+        else:
+            print("[cw-run] both sides exhausted at this budget; stopping")
+            break
+        k = ub - 1 if side == 0 else lb
         print(f"[cw-run] window [{lb},{ub}] -> deciding cutwidth<={k} "
               f"({(time.time() - t0) / 3600:.2f}h into ladder)")
         hint = cur["best_labeling"] if side == 0 else None
@@ -3413,14 +3425,14 @@ def cmd_cw_run(args):
             st.record_labeling(lab, f"cw-run(k={k})")
         elif res == "UNSAT":
             st.record_unsat(k, "cpsat")
+        elif side == 0:
+            sat_dead = True
+            print(f"[cw-run] SAT side gave up at cutwidth<={k}; "
+                  f"upper bound stays {ub}")
         else:
-            if side == 1:
-                print("[cw-run] both sides hard at this budget; stopping")
-                break
-            side = 1
-            cur = st.read()
-            continue
-        side ^= 1
+            unsat_dead = True
+            print(f"[cw-run] UNSAT side gave up at cutwidth<={k}; "
+                  f"lower bound stays {lb}")
         cur = st.read()
     lb, ub = State.window(st.read())
     print(f"[cw] certified window: {lb} <= cutwidth* <= {ub}")

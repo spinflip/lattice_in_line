@@ -28,11 +28,13 @@ RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
 # So for cutwidth we pour time into the SA heuristic and shorten each CP-SAT
 # decision (enough for SAT-side improvements, not 12h of hopeless UNSAT).
 if [[ "$MODE" == "cutwidth" ]]; then
-  TIME_HEUR_D=43200      # 12h SA (the workhorse)
-  TIME_PER_K_D=7200      #  2h per CP-SAT decision
+  TIME_HEUR_D=43200      # 12h SA (the workhorse; cutwidth rarely certifies at n>~30)
+  TIME_PER_K_D=3600      #  1h per CP-SAT decision
+  LADDER_TIME_D=7200     #  2h TOTAL ladder cap (SAT probe + LB tightening)
 else
   TIME_HEUR_D=14400      #  4h
   TIME_PER_K_D=43200     # 12h
+  LADDER_TIME_D=0        # unlimited (bandwidth ladder closes both sides)
 fi
 
 CENV=(
@@ -40,6 +42,7 @@ CENV=(
   TIME_HEUR=$TIME_HEUR_D STALL=3600
   TIME_OPT=14400
   TIME_PER_K=$TIME_PER_K_D
+  LADDER_TIME=$LADDER_TIME_D
   SAT_TIME=0
   WORKERS=16 PROCS=160 JOBS_PER_SIDE=4
   SEED=1

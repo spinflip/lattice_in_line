@@ -31,15 +31,18 @@ RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
 # Per-mode budgets (see certify_large.sh for the rationale): cutwidth favours the
 # SA heuristic and shortens each CP-SAT decision (its UNSAT side rarely closes).
 if [[ "$MODE" == "cutwidth" ]]; then
-  TIME_HEUR_D=7200       # 2h SA
-  TIME_PER_K_D=3600      # 1h per CP-SAT decision
+  TIME_HEUR_D=7200       # 2h SA (the workhorse)
+  TIME_PER_K_D=1800      # 30min per CP-SAT decision
+  LADDER_TIME_D=3600     # 1h TOTAL ladder cap (SAT probe + LB tightening)
 else
   TIME_HEUR_D=3600       # 1h
   TIME_PER_K_D=14400     # 4h
+  LADDER_TIME_D=0        # unlimited (bandwidth ladder closes both sides)
 fi
 
 CENV=(
   TIME_HEUR=$TIME_HEUR_D STALL=300 TIME_OPT=3600 TIME_PER_K=$TIME_PER_K_D
+  LADDER_TIME=$LADDER_TIME_D
   SAT_TIME=3600 WORKERS=16 PROCS=160 JOBS_PER_SIDE=2 SEED=1
 )
 # show a representative plan (same budgets for every cluster) and confirm
