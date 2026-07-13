@@ -15,14 +15,16 @@ permutations_sat_cutwidth.py (cutwidth-optimized layouts), then:
      divergence (how much the bandwidth-optimal ordering costs in cutwidth, and
      how much bandwidth the cutwidth-optimal ordering wastes).
 
-Two figures are written (PNG at 300 dpi + vector PDF):
-  <prefix>_bonddim.png     d_aux^max vs bandwidth | vs cutwidth, with r / rho
-  <prefix>_divergence.png  arrows from the bandwidth-opt to the cutwidth-opt
-                           layout of each shared cluster in (bandwidth, cutwidth)
+Two figures are written (PNG at 300 dpi + vector PDF) under the repo's plots/
+folder by default:
+  plots/mpo_bonddim.png     d_aux^max vs bandwidth | vs cutwidth, with r / rho
+  plots/mpo_divergence.png  arrows from the bandwidth-opt to the cutwidth-opt
+                            layout of each shared cluster in (bandwidth, cutwidth)
 
 Usage:
   vmps-analyze-mpo-correlation
-  vmps-analyze-mpo-correlation --out-prefix figs/mpo --no-plot   # numbers only
+  vmps-analyze-mpo-correlation --out-prefix figs/mpo   # custom prefix/location
+  vmps-analyze-mpo-correlation --no-plot                # numbers only
   vmps-analyze-mpo-correlation --bw-file a.py --cw-file b.py
 
 Plotting needs matplotlib (the [plot] extra); without it the numbers still print.
@@ -37,7 +39,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .bandwidth_cutwidth_correlation import _linfit, pearson, spearman
+from .bandwidth_cutwidth_correlation import _linfit, _plots_dir, pearson, spearman
 
 _MARK = {"bw": "o", "cw": "s"}
 _COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
@@ -256,10 +258,12 @@ def main() -> None:
     ap.add_argument("--cw-file",
                     default=_default_file("permutations_sat_cutwidth.py"),
                     help="cutwidth-optimized permutation table")
-    ap.add_argument("--out-prefix", default="mpo",
-                    help="output figure path prefix (default: mpo)")
+    ap.add_argument("--out-prefix", default=None,
+                    help="output figure path prefix (default: plots/mpo)")
     ap.add_argument("--no-plot", action="store_true", help="skip the figures")
     args = ap.parse_args()
+    if args.out_prefix is None:
+        args.out_prefix = os.path.join(_plots_dir(), "mpo")
 
     recs: List[Dict] = []
     for path, src in [(args.bw_file, "bw"), (args.cw_file, "cw")]:

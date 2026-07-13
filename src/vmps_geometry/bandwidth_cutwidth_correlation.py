@@ -30,7 +30,7 @@ Two datasets (choose with --mode):
              dense graphs), so its linear r is lower while the rank rho stays high.
 
 Usage:
-  python -m vmps_geometry.bandwidth_cutwidth_correlation
+  python -m vmps_geometry.bandwidth_cutwidth_correlation   # -> plots/bandwidth_cutwidth_correlation.png
   vmps-bandwidth-cutwidth-correlation --mode per-graph --out corr.png
   vmps-bandwidth-cutwidth-correlation --graphs pyrochlore,kagome --csv pts.csv
 
@@ -40,8 +40,19 @@ still printed and a CSV can still be written.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from typing import Dict, List, Tuple
+
+
+def _plots_dir() -> str:
+    """Repo-root plots/ folder (gitignored scratch output), resolved from this
+    module's location so it works regardless of the caller's cwd."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    d = os.path.join(root, "plots")
+    os.makedirs(d, exist_ok=True)
+    return d
 
 import numpy as np
 
@@ -263,7 +274,6 @@ def plot(pts: List[Dict], fit: str, out: str, show: bool) -> bool:
     ax.legend(handles=auto + legend_handles, loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
-    import os
     root, _ = os.path.splitext(out)
     fig.savefig(out, dpi=300)
     pdf = root + ".pdf"
@@ -295,13 +305,16 @@ def main() -> None:
                          "heuristics/SAT/QUBO separately (default -- they are "
                          "different populations; a pooled slope is misleading and "
                          "leverage-dominated); 'pooled' = one line over all points")
-    ap.add_argument("--out", default="bandwidth_cutwidth_correlation.png",
-                    help="output image path")
+    ap.add_argument("--out", default=None,
+                    help="output image path (default: "
+                         "plots/bandwidth_cutwidth_correlation.png)")
     ap.add_argument("--csv", default=None, help="also write the points to CSV")
     ap.add_argument("--no-plot", action="store_true", help="skip the plot")
     ap.add_argument("--show", action="store_true",
                     help="open an interactive window as well as saving")
     args = ap.parse_args()
+    if args.out is None:
+        args.out = os.path.join(_plots_dir(), "bandwidth_cutwidth_correlation.png")
 
     algs = [a.strip() for a in args.algorithms.split(",") if a.strip()]
     for a in algs:
