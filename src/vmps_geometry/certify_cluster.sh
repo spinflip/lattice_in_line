@@ -26,14 +26,23 @@
 #   SAT_TIME      cap (secs) for the final SAT cross-check (3600);
 #                 SAT_TIME=0 skips the cross-check entirely
 #   POLISH_TIME   phase 6: minimize total interaction range at the certified
-#                 bandwidth (secs); POLISH_TIME=0 skips polishing     (1800)
+#                 bandwidth (secs); POLISH_TIME=0 skips polishing     (3600)
+#   POLISH_ONLY   1 = (cutwidth mode) skip cw-run/cross-check and only re-polish
+#                 the existing layout in STATE_DIR. Resumable: each improving
+#                 layout is saved as it is found, so it continues a prior polish. (0)
 #   CERT          path to bandwidth_certifier.py       (./bandwidth_certifier.py)
 #   PYTHON        python interpreter                   (python3)
 #   PLAN_ONLY     1 = print the campaign plan and exit without running  (0)
 #   CONFIRM       1 = after the plan, ask for keyboard y/N confirmation
 #                 (interactive terminals only; the launchers set this)   (0)
 #   YES           1 = skip that confirmation prompt (auto-accept)        (0)
-#   MODE          campaign type: plain | ss            (plain)
+#   MODE          campaign type: plain | ss | cutwidth  (plain)
+#                 cutwidth minimizes cut_max (max Hamiltonian edges crossing any
+#                 MPS cut = the MPO bond dimension) instead of bandwidth. Same
+#                 certified machinery (SA UB + CP-SAT ladder + SAT cross-check);
+#                 state/artifacts tagged _cw so they never mix with bandwidth.
+#                 Note: cutwidth lower bounds are weak, so the window only closes
+#                 for small clusters (~n<=25-30); larger ones give a heuristic UB.
 #   BLOCK         supersite size for MODE=ss           (2)
 #   MIN_INTRA     (ss mode) require >= N edges hidden inside supersites.
 #                 Separate state/artifacts tagged _ie<N>; the certificate is
@@ -97,7 +106,7 @@ GENERATOR="${GENERATOR:-./cluster_generator.py}"
 SEED_HEUR="${SEED_HEUR:-60}"
 SEED_OPT="${SEED_OPT:-120}"
 SAT_TIME="${SAT_TIME:-${KISSAT_TIME:-3600}}"
-POLISH_TIME="${POLISH_TIME:-1800}"
+POLISH_TIME="${POLISH_TIME:-3600}"
 
 C() { "$PYTHON" "$CERT" "$@" --cluster "$CLUSTER" --state-dir "$STATE_DIR"; }
 
@@ -122,6 +131,8 @@ fi
 
 if [[ "$MODE" == "ss" ]]; then
   STATE_JSON="$STATE_DIR/${CLUSTER}__ss${BLOCK}${SS_TAG}.json"
+elif [[ "$MODE" == "cutwidth" ]]; then
+  STATE_JSON="$STATE_DIR/${CLUSTER}__cw.json"
 else
   STATE_JSON="$STATE_DIR/$CLUSTER.json"
 fi
@@ -171,6 +182,15 @@ print_plan() {
     log "  phase 1  CP-SAT decision ladder     : $(_dur "$TIME_PER_K") per k-decision   CPUs: ${WORKERS}  (solver threads)"
     log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
     log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
+  elif [[ "$MODE" == "cutwidth" ]]; then
+    log "cluster $CLUSTER : cutwidth (MPO bond dimension), symmetry $SYMMETRY"
+    log "  state dir : $STATE_DIR   (artifacts tagged _cw)"
+    log "  note      : cutwidth lower bounds are weak; window closes only for"
+    log "              small clusters (~n<=25-30), else a heuristic upper bound"
+    log "  phase 1  heuristic SA upper bound   : $(_dur "$TIME_HEUR")  (stall ${STALL}s)   CPUs: ${PROCS}  (parallel SA chains)"
+    log "  phase 4  CP-SAT decision ladder     : $(_dur "$TIME_PER_K") per k-decision   CPUs: ${WORKERS}  (solver threads)"
+    log "  phase 5  SAT cross-check (if closed): $(_budget "$SAT_TIME")   CPUs: 2  (two independent solvers)"
+    log "  phase 6  range polish at final cut  : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
   else
     log "cluster $CLUSTER : plain single-site bandwidth, symmetry $SYMMETRY"
     log "  state dir : $STATE_DIR"
@@ -272,6 +292,72 @@ if [[ "$MODE" == "ss" ]]; then
     log "  assignment in"
   fi
   log "  $STATE_DIR/${CLUSTER}_ss${BLOCK}${SS_TAG}_assignment.txt"
+  exit 0
+fi
+
+# ========================================================== cutwidth mode
+if [[ "$MODE" == "cutwidth" ]]; then
+  log "cutwidth campaign: minimizing cut_max (MPO bond dimension)"
+  # POLISH_ONLY=1 skips cw-run and the cross-check and only re-polishes an
+  # existing campaign's layout (send previous cw_run_* results through phase 6).
+  if [[ "${POLISH_ONLY:-0}" == 1 ]]; then
+    log "POLISH_ONLY=1: skipping cw-run/cross-check; polishing the existing layout"
+  else
+    # cw-run does the whole thing: math LB, SA upper bound, then the alternating
+    # CP-SAT decision ladder. STALL feeds the heuristic; PROCS the SA pool.
+    C cw-run --heur-time "$TIME_HEUR" --time-per-k "$TIME_PER_K" \
+      --workers "$WORKERS" --procs "$PROCS" --stall "$STALL" --seed "$SEED" \
+      --symmetry "$SYMMETRY"
+  fi
+  read -r LB UB < <(window)
+  log "cutwidth window: [$LB, $UB]"
+  if [[ "$UB" -lt 0 ]]; then
+    log "no upper bound found yet; nothing to export. Re-run to resume."
+    exit 0
+  fi
+  CLOSED=0
+  if [[ "$LB" -ge "$UB" ]]; then
+    CLOSED=1
+    log "window closed: cutwidth c* = $UB (certified)"
+  else
+    log "window NOT closed: $LB <= c* <= $UB (expected for larger clusters --"
+    log "cutwidth lower bounds are weak). Proceeding with the best known layout."
+  fi
+  # phase 5: cross-check the decisive UNSAT only when the window is closed
+  if [[ "$CLOSED" -eq 1 && "${POLISH_ONLY:-0}" != 1 ]]; then
+    KDEC=$((UB - 1))
+    PROOF_LEVEL="$(proof_of "$KDEC")"
+    if [[ "$PROOF_LEVEL" == "xsat" || "$PROOF_LEVEL" == "drat" ]]; then
+      log "decisive k=$KDEC already verified at level '$PROOF_LEVEL'; skipping"
+    elif [[ "${SAT_TIME%.*}" -le 0 ]]; then
+      log "SAT cross-check skipped (SAT_TIME=0); certification stands at cpsat"
+    else
+      CNF="$STATE_DIR/${CLUSTER}_cw_k${KDEC}.cnf"
+      DRAT="$STATE_DIR/${CLUSTER}_cw_k${KDEC}.drat"
+      C cw-verify --k "$KDEC" --time "$SAT_TIME" --symmetry "$FINAL_SYM" \
+        --cnf-out "$CNF" --proof-out "$DRAT" \
+        > "$STATE_DIR/cw_verify_k${KDEC}.log" 2>&1 || true
+      if grep -q 'recorded (xsat)' "$STATE_DIR/cw_verify_k${KDEC}.log"; then
+        log "cross-check passed (xsat); DRAT archived at $DRAT"
+      else
+        log "cross-check inconclusive; certification stands at cpsat level"
+      fi
+    fi
+  fi
+  # phase 6: polish the best layout (ALWAYS) -- minimize total interaction range
+  # while holding cutwidth <= UB. Same bond dimension, less entanglement spread.
+  if [[ "${POLISH_TIME%.*}" -gt 0 ]]; then
+    log "phase 6: polishing total interaction range at cutwidth $UB ($(_dur "$POLISH_TIME"))"
+    C cw-polish --target "$UB" --time "$POLISH_TIME" --workers "$WORKERS" \
+      --symmetry "$SYMMETRY"
+  fi
+  C cw-export > "$STATE_DIR/${CLUSTER}_cw_permutation.txt"
+  if [[ "$CLOSED" -eq 1 ]]; then
+    log "result: cutwidth c*(${CLUSTER}) = $UB (CERTIFIED); permutation in"
+  else
+    log "result: best-known cutwidth $UB (lower bound $LB, NOT certified); permutation in"
+  fi
+  log "  $STATE_DIR/${CLUSTER}_cw_permutation.txt"
   exit 0
 fi
 

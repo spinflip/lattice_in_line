@@ -125,6 +125,12 @@ def total_range(lab, edges):
 
 
 class State:
+    # objective naming for human-facing messages; subclasses override (e.g.
+    # CutwidthState -> "cutwidth" / "c*"). The stored numbers are the same
+    # objective-agnostic ub/unsat machinery either way.
+    objective = "bandwidth"
+    objective_abbrev = "B*"
+
     def __init__(self, state_dir, name, n, edges, weights=None, dist=None,
                  mult=1):
         os.makedirs(state_dir, exist_ok=True)
@@ -223,11 +229,11 @@ class State:
                                       "ub": bw, "sum_range": rng_,
                                       "source": source})
                 if improved_bw:
-                    print(f"[state] new upper bound {bw} "
+                    print(f"[state] new {self.objective} upper bound {bw} "
                           f"(total range {rng_}) ({source})")
                 else:
-                    print(f"[state] same bandwidth {bw}, smaller total range "
-                          f"{rng_} < {cur_rng} ({source})")
+                    print(f"[state] same {self.objective} {bw}, smaller total "
+                          f"range {rng_} < {cur_rng} ({source})")
             return st
         return self.update(fn)
 
@@ -259,10 +265,15 @@ class State:
         return lb, st["ub"]
 
 
-def print_status(st, edges):
+def print_status(st, edges, objective="bandwidth", abbrev="B*", value_fn=None):
+    """Human-readable status. `objective`/`abbrev` name the quantity (e.g.
+    'cutwidth'/'c*'); `value_fn(lab, edges)` recomputes the incumbent's
+    objective value for the verification line (defaults to bandwidth_of)."""
+    if value_fn is None:
+        value_fn = bandwidth_of
     lb, ub = State.window(st)
     print(f"cluster {st['cluster']}: n={st['n']}, |E|={st['num_edges']}")
-    print(f"  certified window: {lb} <= B* <= {ub}")
+    print(f"  certified window: {lb} <= {abbrev} <= {ub}")
     if st["unsat"]:
         strongest = {}
         for k, p in sorted(st["unsat"].items(), key=lambda x: int(x[0])):
@@ -271,12 +282,11 @@ def print_status(st, edges):
               ", ".join(f"{k} ({p})" for k, p in strongest.items()))
     print(f"  math lower bound: {st['math_lb']}")
     if ub is not None and lb == ub:
-        kinds = set(st["unsat"].values()) if st["unsat"] else {"math"}
         decisive = st["unsat"].get(str(ub - 1), "math")
-        print(f"  *** CERTIFIED OPTIMAL: B* = {ub} "
+        print(f"  *** CERTIFIED OPTIMAL: {abbrev} = {ub} "
               f"(decisive infeasibility proof at k={ub - 1}: {decisive}) ***")
     if st["best_labeling"]:
-        bw = bandwidth_of(st["best_labeling"], edges)
+        val = value_fn(st["best_labeling"], edges)
         sr = st.get("sum_range")
         extra = f", total interaction range {sr}" if sr is not None else ""
-        print(f"  incumbent labeling verified: objective {bw}{extra}")
+        print(f"  incumbent labeling verified: {objective} {val}{extra}")

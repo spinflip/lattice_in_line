@@ -250,11 +250,6 @@ def test_compute_profile_known_value():
 
 def test_compute_cutwidth_path_cycle_and_bound():
     import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmss import _n  # noqa  (placeholder removed below)
-
-
-def test_compute_cutwidth_path_cycle_and_bound():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
     from vmps_geometry.cluster_edges import CLUSTER_EDGES
     path = [(i, i + 1) for i in range(9)]           # 10-node path
     assert bhb.compute_cutwidth(path, list(range(10))) == 1
@@ -268,3 +263,80 @@ def test_compute_cutwidth_path_cycle_and_bound():
         order = bhb.cuthill_mckee_ordering(edges)
         B = bhb.compute_bandwidth(edges, order)
         assert bhb.compute_cutwidth(edges, order) <= B * delta
+
+
+# ----- cutwidth certifier mode (MODE=cutwidth / cw-* commands) -----
+
+def test_cutwidth_of_matches_bruteforce():
+    import itertools
+    # a small non-trivial graph: every permutation's cut_max via the sweep
+    # must match an independent per-cut recomputation.
+    edges = [(0, 1), (1, 2), (2, 3), (0, 3), (0, 2)]
+    n = 4
+
+    def brute(lab):
+        pos = [0] * n
+        for v in range(n):
+            pos[v] = lab[v] - 1
+        best = 0
+        for cut in range(1, n):                 # boundary after `cut` sites
+            left = {v for v in range(n) if pos[v] < cut}
+            c = sum(1 for u, v in edges
+                    if (u in left) != (v in left))
+            best = max(best, c)
+        return best
+
+    for p in itertools.permutations(range(1, n + 1)):
+        assert bc.cutwidth_of(list(p), edges) == brute(list(p))
+
+
+def test_cutwidth_of_path_and_cycle():
+    path = [(i, i + 1) for i in range(9)]
+    assert bc.cutwidth_of(list(range(1, 11)), path) == 1
+    cyc = [(i, (i + 1) % 10) for i in range(10)]
+    assert bc.cutwidth_of(list(range(1, 11)), cyc) == 2
+
+
+def test_cutwidth_math_lb_is_valid_lower_bound():
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    for g in ("C12", "C20"):
+        _nodes, edges = bhb.normalize_edges(CLUSTER_EDGES[g])
+        n = max(max(u, v) for u, v in edges) + 1
+        lb = bc.cutwidth_math_lb(n, edges)
+        assert lb == max(1, -(-max(len(a) for a in bc.adjacency(n, edges)) // 2))
+        # a valid LB never exceeds the identity ordering's cutwidth
+        assert lb <= bc.cutwidth_of(list(range(1, n + 1)), edges)
+
+
+def test_cutwidth_state_objective_and_range(tmp_path):
+    edges = [(0, 1), (1, 2), (2, 3), (0, 3)]
+    st = bc.CutwidthState(str(tmp_path), "toy__cw", 4, edges)
+    lab = [1, 2, 3, 4]
+    assert st.value_of(lab) == bc.cutwidth_of(lab, edges)
+    assert st.range_of(lab) == bc.total_range(lab, edges)
+
+
+def test_sa_cutwidth_returns_valid_permutation_and_optimal_path():
+    path = [(i, i + 1) for i in range(7)]        # optimal cutwidth = 1
+    cw, lab = bc.sa_cutwidth(8, path, None, 0, 1.5)
+    assert sorted(lab) == list(range(1, 9))       # a genuine permutation
+    assert cw == bc.cutwidth_of(lab, path) == 1
+
+
+def test_cw_polish_holds_cutwidth_and_minimizes_range():
+    import pytest
+    pytest.importorskip("ortools")
+    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    _nodes, E = bhb.normalize_edges(CLUSTER_EDGES["C12"])
+    n = 12
+    ident = list(range(1, n + 1))
+    c = bc.cutwidth_of(ident, E)
+    status, lab, tr, lb, _note = bc.cpsat_polish_cutwidth(n, E, c, 30, 4, hint=ident)
+    assert lab is not None
+    assert bc.cutwidth_of(lab, E) <= c                 # bond-dim ceiling honored
+    assert tr <= bc.total_range(ident, E)              # range never worsened
+    assert tr == bc.total_range(lab, E)                # reported range consistent
+    if status == "OPTIMAL":
+        assert tr == lb                                # proven minimum range
