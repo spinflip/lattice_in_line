@@ -71,6 +71,10 @@ if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
 set -euo pipefail
+# Unbuffer Python stdout: under nohup the log is a file (not a TTY), so Python
+# block-buffers stdout and phase/decision progress can sit unflushed for hours,
+# making a long campaign look stuck. Force line-buffered, live output.
+export PYTHONUNBUFFERED=1
 
 CLUSTER="${1:?usage: $0 CLUSTER_NAME}"
 PYTHON="${PYTHON:-python3}"
