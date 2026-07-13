@@ -37,7 +37,11 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .bandwidth_cutwidth_correlation import pearson, spearman
+from .bandwidth_cutwidth_correlation import _linfit, pearson, spearman
+
+_MARK = {"bw": "o", "cw": "s"}
+_COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
+_LABEL = {"bw": "bandwidth-opt", "cw": "cutwidth-opt"}
 
 _RE_GEO = re.compile(
     r"#\s*bandwidth=([0-9.]+),\s*envelope=([0-9.]+),\s*cutwidth=([0-9]+)")
@@ -151,35 +155,41 @@ def plot_bonddim(recs: List[Dict], prefix: str) -> None:
     plt = _plt()
     if plt is None:
         return
+    from matplotlib.lines import Line2D
     have = [r for r in recs if "daux_max" in r]
     bw = np.array([r["bandwidth"] for r in have])
     cut = np.array([r["cutwidth"] for r in have])
     dam = np.array([r["daux_max"] for r in have])
-    srcs = ["bw", "cw"]
-    colors = {"bw": "tab:blue", "cw": "tab:orange"}
-    labels = {"bw": "bandwidth-opt layouts", "cw": "cutwidth-opt layouts"}
+    srcs = [s for s in ("bw", "cw") if any(r["source"] == s for r in have)]
     fig, axs = plt.subplots(1, 2, figsize=(12, 5.4), sharey=True)
     for ax, x, xlab in [(axs[0], bw, r"bandwidth $B$"),
                         (axs[1], cut, r"cutwidth $C$")]:
-        for s in srcs:
+        handles = []
+        for s in srcs:                          # fit each population separately
             idx = [i for i, r in enumerate(have) if r["source"] == s]
-            if idx:
-                ax.scatter(x[idx], dam[idx], c=colors[s], s=46, alpha=0.85,
-                           edgecolors="black", linewidths=0.4, label=labels[s],
-                           zorder=3)
-        if len(x) >= 2 and np.std(x) > 0:
-            a, b = np.polyfit(x, dam, 1)
-            xs = np.array([x.min(), x.max()])
-            ax.plot(xs, a * xs + b, "r-", lw=1.6, zorder=2)
+            xs_s, ys_s = x[idx], dam[idx]
+            ax.scatter(xs_s, ys_s, c=_COLOR[s], marker=_MARK[s], s=46,
+                       alpha=0.85, edgecolors="black", linewidths=0.4, zorder=3)
+            f = _linfit(xs_s, ys_s)
+            if f is not None:
+                a, b = f
+                xr = np.array([xs_s.min(), xs_s.max()])
+                ax.plot(xr, a * xr + b, color=_COLOR[s], lw=1.8, zorder=2)
+                lab = (f"{_LABEL[s]}: r={pearson(xs_s, ys_s):.2f}, "
+                       f"slope={a:.2f}")
+            else:
+                lab = _LABEL[s]
+            handles.append(Line2D([], [], color=_COLOR[s], marker=_MARK[s],
+                                  markeredgecolor="black", label=lab))
         ax.set_xlabel(xlab)
         ax.grid(alpha=0.25)
-        ax.set_title(f"$d_{{aux}}^{{max}}$ vs {xlab.split()[0]}\n"
-                     f"Pearson r={pearson(x, dam):.3f}   "
-                     f"Spearman ρ={spearman(x, dam):.3f}")
+        ax.legend(handles=handles, loc="upper left", framealpha=0.9, fontsize=9)
+        ax.set_title(f"$d_{{aux}}^{{max}}$ vs {xlab.split()[0]}   "
+                     f"(pooled r={pearson(x, dam):.3f})")
     axs[0].set_ylabel(r"MPO bond dimension  $d_{aux}^{max}$")
-    axs[0].legend(loc="upper left", framealpha=0.9)
     fig.suptitle(f"Which objective predicts the MPO bond dimension? "
-                 f"({len(have)} DMRG-measured layouts)", fontsize=13)
+                 f"({len(have)} DMRG-measured layouts, fitted per family)",
+                 fontsize=13)
     fig.tight_layout()
     _save(fig, prefix, "bonddim")
 
@@ -194,8 +204,14 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
               file=sys.stderr)
         return
     fig, ax = plt.subplots(figsize=(9.5, 7.2))
-    hi = max(max(r["bandwidth"], r["cutwidth"]) for r in recs) + 5
-    ax.plot([1, hi], [1, hi], "k--", lw=1, alpha=0.4)
+    vals = [v for r in recs for v in (r["bandwidth"], r["cutwidth"])]
+    lo, hi = min(vals) * 0.8, max(vals) * 1.25
+    # log-log: bandwidth spans 4..>200 while most clusters sit at 5..30, so a
+    # linear scale crushes them into the corner; log spreads them out and the
+    # C = B reference stays a straight line.
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     for r in rows:
         div = r["cut_ratio"] > 1.05
         col = "crimson" if div else "0.6"
