@@ -202,11 +202,16 @@ def pseudo_peripheral_vertex(adj: Adjacency, start: Optional[int] = None) -> int
         old_depth = depth
 
 
-def cuthill_mckee_ordering(edges: EdgeList) -> List[int]:
+def _cuthill_mckee_ordering_purepython(edges: EdgeList) -> List[int]:
     """
-    Cuthill-McKee heuristic.
+    Legacy pure-python Cuthill-McKee (fallback when scipy is unavailable).
 
-    Handles disconnected graphs by restarting from a low-degree unvisited vertex.
+    Handles disconnected graphs by restarting from a low-degree unvisited
+    vertex. NOTE: RCM is not unique -- start-vertex selection and tie-breaking
+    among equal-degree neighbours are free choices, and this implementation's
+    choices differ from scipy's (e.g. C60 RCM: cutwidth 16 here vs 13 with
+    scipy). The project standard is scipy's reverse_cuthill_mckee; this
+    fallback exists only so the module still works without scipy installed.
     """
     adj = build_adjacency(edges)
     n = len(adj)
@@ -238,12 +243,36 @@ def cuthill_mckee_ordering(edges: EdgeList) -> List[int]:
 
 def reverse_cuthill_mckee_ordering(edges: EdgeList) -> List[int]:
     """
-    Reverse Cuthill-McKee.
-
-    This implementation avoids scipy so the comparison file has no dependency
-    beyond CLUSTER_EDGES.
+    Reverse Cuthill-McKee via scipy's reference implementation
+    (scipy.sparse.csgraph.reverse_cuthill_mckee) -- the project standard, so
+    orderings agree with vmps_torch and the Boost-based C++ code (which give
+    the same metrics). Falls back to the legacy pure-python version, with a
+    warning, if scipy is not installed.
     """
-    return list(reversed(cuthill_mckee_ordering(edges)))
+    adj = build_adjacency(edges)
+    n = len(adj)
+    if n == 0:
+        return []
+    try:
+        import numpy as np
+        from scipy.sparse import csr_matrix
+        from scipy.sparse.csgraph import reverse_cuthill_mckee as _scipy_rcm
+    except ImportError:
+        import sys
+        print("[ordering] scipy unavailable; falling back to the pure-python "
+              "Cuthill-McKee (tie-breaks differ from scipy's reference "
+              "implementation)", file=sys.stderr)
+        return list(reversed(_cuthill_mckee_ordering_purepython(edges)))
+    rows = [u for u, v in edges] + [v for u, v in edges]
+    cols = [v for u, v in edges] + [u for u, v in edges]
+    A = csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
+    return [int(x) for x in _scipy_rcm(A, symmetric_mode=True)]
+
+
+def cuthill_mckee_ordering(edges: EdgeList) -> List[int]:
+    """Cuthill-McKee = the exact reverse of the (scipy-backed) RCM ordering,
+    so CM and RCM stay reverses of each other by construction."""
+    return list(reversed(reverse_cuthill_mckee_ordering(edges)))
 
 
 def gps_ordering(edges: EdgeList) -> List[int]:
