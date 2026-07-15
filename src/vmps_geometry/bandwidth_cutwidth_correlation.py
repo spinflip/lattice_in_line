@@ -45,11 +45,26 @@ import sys
 from typing import Dict, List, Tuple
 
 
+def _find_repo_root(start: str) -> str:
+    """Nearest ancestor of `start` that contains pyproject.toml, else ''."""
+    cur = os.path.abspath(start)
+    while True:
+        if os.path.isfile(os.path.join(cur, "pyproject.toml")):
+            return cur
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return ""
+        cur = parent
+
+
 def _plots_dir() -> str:
-    """Repo-root plots/ folder (gitignored scratch output), resolved from this
-    module's location so it works regardless of the caller's cwd."""
-    root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))
+    """The repo's plots/ folder (gitignored scratch output). Locate the repo
+    root by walking up to the pyproject.toml -- from the module first (works
+    for an editable checkout), then from the current directory (works when the
+    package is pip-installed into site-packages and __file__ is not in the
+    repo). Falls back to ./plots if neither is found."""
+    root = (_find_repo_root(os.path.dirname(__file__))
+            or _find_repo_root(os.getcwd()) or os.getcwd())
     d = os.path.join(root, "plots")
     os.makedirs(d, exist_ok=True)
     return d
