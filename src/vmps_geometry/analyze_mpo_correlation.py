@@ -152,7 +152,7 @@ def divergence(recs: List[Dict], exclude=()) -> List[Dict]:
     print(f"  {'cluster':26s}{'cut(bw-opt)':>12s}{'cut(cw-opt)':>12s}"
           f"{'ratio':>7s}{'bw(bw-opt)':>11s}{'bw(cw-opt)':>11s}")
     for r in rows:
-        flag = "  <- diverges" if r["cut_ratio"] > 1.05 else ""
+        flag = "  <- diverges" if round(r["cut_ratio"], 2) > 1.06 else ""
         print(f"  {r['cluster']:26s}{r['cut_bwopt']:12d}{r['cut_cwopt']:12d}"
               f"{r['cut_ratio']:7.2f}{r['bw_bwopt']:11.0f}{r['bw_cwopt']:11.0f}"
               f"{flag}")
@@ -164,6 +164,7 @@ def _plt():
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        plt.rcParams.update({"font.size": 14})
         return plt
     except Exception as e:  # noqa: BLE001
         print(f"[plot] matplotlib unavailable ({e}); skipping figures "
@@ -178,10 +179,10 @@ def _save(fig, prefix: str, name: str) -> None:
 
 
 def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
-           ylabel: str, title: str) -> None:
+           ylabel: str, xsym: str, ysym: str) -> None:
     """Scatter ykey vs xkey coloured/marked by source, with a separate
-    least-squares fit (+ r, slope in the legend) per layout family and the
-    pooled Pearson r in the title."""
+    least-squares fit per layout family whose full linear law (ysym = a*xsym + b,
+    r) is printed in the legend. `xsym`/`ysym` are mathtext symbols (no $)."""
     from matplotlib.lines import Line2D
     x = np.array([r[xkey] for r in have], dtype=float)
     y = np.array([r[ykey] for r in have], dtype=float)
@@ -196,7 +197,8 @@ def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
             a, b = f
             xr = np.array([xs_s.min(), xs_s.max()])
             ax.plot(xr, a * xr + b, color=_COLOR[s], lw=1.8, zorder=2)
-            lab = f"{_LABEL[s]}: r={pearson(xs_s, ys_s):.2f}, slope={a:.2f}"
+            lab = (f"{_LABEL[s]}: ${ysym} = {a:.2f}\\,{xsym} {b:+.2f}$"
+                   f"  (r={pearson(xs_s, ys_s):.2f})")
         else:
             lab = _LABEL[s]
         handles.append(Line2D([], [], color=_COLOR[s], marker=_MARK[s],
@@ -204,8 +206,7 @@ def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.25)
-    ax.legend(handles=handles, loc="upper left", framealpha=0.9, fontsize=9)
-    ax.set_title(f"{title}   (pooled r={pearson(x, y):.3f})")
+    ax.legend(handles=handles, loc="upper left", framealpha=0.9)
 
 
 def plot_bonddim(recs: List[Dict], prefix: str) -> None:
@@ -215,16 +216,13 @@ def plot_bonddim(recs: List[Dict], prefix: str) -> None:
     if plt is None:
         return
     have = [r for r in recs if "daux_max" in r and "daux_avg" in r]
-    fig, axs = plt.subplots(1, 2, figsize=(12.4, 5.6))
+    fig, axs = plt.subplots(1, 2, figsize=(13.4, 5.8))
     _panel(axs[0], have, "cutwidth", "daux_max", r"cutwidth $C$",
-           r"peak MPO bond dim  $d_{aux}^{max}$",
-           r"peak $d_{aux}^{max}$ vs cutwidth")
+           r"peak MPO bond dim  $\chi_{\mathrm{max}}$",
+           "C", r"\chi_{\mathrm{max}}")
     _panel(axs[1], have, "envelope", "daux_avg", r"envelope $R$",
-           r"mean MPO bond dim  $d_{aux}^{avg}$",
-           r"mean $d_{aux}^{avg}$ vs envelope")
-    fig.suptitle(f"MPO bond dimension vs geometry "
-                 f"({len(have)} DMRG-measured layouts, fitted per family)",
-                 fontsize=13)
+           r"mean MPO bond dim  $\chi_{\mathrm{avg}}$",
+           "R", r"\chi_{\mathrm{avg}}")
     fig.tight_layout()
     _save(fig, prefix, "bonddim")
 
@@ -236,10 +234,10 @@ def plot_bonddim_bandwidth(recs: List[Dict], prefix: str) -> None:
     if plt is None:
         return
     have = [r for r in recs if "daux_max" in r]
-    fig, ax = plt.subplots(figsize=(6.8, 5.6))
+    fig, ax = plt.subplots(figsize=(7.6, 5.8))
     _panel(ax, have, "bandwidth", "daux_max", r"bandwidth $B$",
-           r"peak MPO bond dim  $d_{aux}^{max}$",
-           r"peak $d_{aux}^{max}$ vs bandwidth")
+           r"peak MPO bond dim  $\chi_{\mathrm{max}}$",
+           "B", r"\chi_{\mathrm{max}}")
     fig.tight_layout()
     _save(fig, prefix, "bandwidth")
 
@@ -263,13 +261,11 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     for r in rows:
-        diff = r["cut_bwopt"] - r["cut_cwopt"]      # cutwidth the bw-opt loses
-        if diff <= 0:                               # objectives agree
-            col, lw, al = "0.6", 1.0, 0.5
-        elif diff <= 2:                             # marginal: <= 2 apart
-            col, lw, al = "gold", 2.0, 0.95
-        else:                                       # real divergence
-            col, lw, al = "crimson", 1.8, 0.9
+        diverges = round(r["cut_ratio"], 2) > 1.06  # displayed factor > 1.06
+        if diverges:
+            col, lw, al = "red", 2.0, 0.95
+        else:                                       # <= 1.06: marginal / agree
+            col, lw, al = "gold", 1.6, 0.8
         ax.annotate("", xy=(r["bw_cwopt"], r["cut_cwopt"]),
                     xytext=(r["bw_bwopt"], r["cut_bwopt"]),
                     arrowprops=dict(arrowstyle="->", color=col, lw=lw, alpha=al))
@@ -278,20 +274,21 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
         ax.scatter([r["bw_cwopt"]], [r["cut_cwopt"]], c="tab:orange",
                    marker="s", s=42, edgecolors="black", linewidths=0.4,
                    zorder=4)
+        if diverges:                                # name only the divergers
+            ax.annotate(f"{r['cluster']} (×{r['cut_ratio']:.2f})",
+                        (r["bw_cwopt"], r["cut_cwopt"]), color="red",
+                        xytext=(4, -2), textcoords="offset points")
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-opt"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-opt"),
-        Line2D([], [], color="crimson", lw=2, label="diverge (cutwidth drops >2)"),
-        Line2D([], [], color="gold", lw=2, label="marginal (cutwidth drops 1-2)"),
-        Line2D([], [], color="0.6", lw=1, label="agree (cutwidth unchanged)"),
+        Line2D([], [], color="red", lw=2, label="diverge (factor > 1.06)"),
+        Line2D([], [], color="gold", lw=2, label="marginal (factor $\\leq$ 1.06)"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label="C = B"),
-    ], loc="lower right", framealpha=0.95, fontsize=9)
+    ], loc="lower right", framealpha=0.95)
     ax.set_xlabel(r"bandwidth $B$")
     ax.set_ylabel(r"cutwidth $C$  (MPO bond-dim proxy)")
-    ax.set_title("When do the objectives diverge?\n"
-                 "arrow = bandwidth-opt → cutwidth-opt layout, same cluster")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "divergence")
