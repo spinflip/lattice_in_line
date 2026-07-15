@@ -46,6 +46,11 @@
 #                 state/artifacts tagged _cw so they never mix with bandwidth.
 #                 Note: cutwidth lower bounds are weak, so the window only closes
 #                 for small clusters (~n<=25-30); larger ones give a heuristic UB.
+#                 Setting BLOCK explicitly with MODE=cutwidth minimizes the
+#                 BLOCKED cutwidth (supersites of BLOCK vertices = the bond
+#                 dimension of the blocked MPO); MIN_INTRA/INTRA_PER_BLOCK apply
+#                 and are synergistic (a hidden bond crosses no cut at all).
+#                 State/artifacts then tagged _cw<BLOCK><constraint tags>.
 #   BLOCK         supersite size for MODE=ss           (2)
 #   MIN_INTRA     (ss mode) require >= N edges hidden inside supersites.
 #                 Separate state/artifacts tagged _ie<N>; the certificate is
@@ -96,6 +101,10 @@ SYMMETRY="${SYMMETRY:-orbit}"
 FINAL_SYM="${FINAL_SYM:-reversal}"
 MAX_ROUNDS="${MAX_ROUNDS:-50}"
 MODE="${MODE:-plain}"
+# capture BLOCK before it is defaulted for ss mode: MODE=cutwidth is PLAIN
+# unless the caller explicitly sets BLOCK (then it minimizes the BLOCKED
+# cutwidth over supersites of that size, with the hidden-bond knobs applying)
+CW_BLOCK="${BLOCK:-1}"
 BLOCK="${BLOCK:-2}"
 MIN_INTRA="${MIN_INTRA:-0}"
 INTRA_PER_BLOCK="${INTRA_PER_BLOCK:-1}"
@@ -142,7 +151,14 @@ fi
 if [[ "$MODE" == "ss" ]]; then
   STATE_JSON="$STATE_DIR/${CLUSTER}__ss${BLOCK}${SS_TAG}.json"
 elif [[ "$MODE" == "cutwidth" ]]; then
-  STATE_JSON="$STATE_DIR/${CLUSTER}__cw.json"
+  # blocked cutwidth (BLOCK set explicitly) gets its own tagged state/artifacts
+  CWTAG=""
+  CWFLAGS=()
+  if [[ "$CW_BLOCK" -gt 1 ]]; then
+    CWTAG="${CW_BLOCK}${SS_TAG}"
+    CWFLAGS=(--block "$CW_BLOCK" ${SS_FLAGS[@]+"${SS_FLAGS[@]}"})
+  fi
+  STATE_JSON="$STATE_DIR/${CLUSTER}__cw${CWTAG}.json"
 else
   STATE_JSON="$STATE_DIR/$CLUSTER.json"
 fi
@@ -194,7 +210,10 @@ print_plan() {
     log "  phase 6  range polish at final bw   : $(_budget "$POLISH_TIME")   CPUs: ${WORKERS}"
   elif [[ "$MODE" == "cutwidth" ]]; then
     log "cluster $CLUSTER : cutwidth (MPO bond dimension), symmetry $SYMMETRY"
-    log "  state dir : $STATE_DIR   (artifacts tagged _cw)"
+    if [[ "$CW_BLOCK" -gt 1 ]]; then
+      log "  blocked   : supersites of $CW_BLOCK, hidden-bond constraints ${SS_TAG:-none}"
+    fi
+    log "  state dir : $STATE_DIR   (artifacts tagged _cw${CWTAG})"
     log "  note      : cutwidth lower bounds are weak; window closes only for"
     log "              small clusters (~n<=25-30), else a heuristic upper bound"
     log "  phase 1  heuristic SA upper bound   : $(_dur "$TIME_HEUR")  (stall ${STALL}s)   CPUs: ${PROCS}  (parallel SA chains)"
@@ -308,6 +327,10 @@ fi
 # ========================================================== cutwidth mode
 if [[ "$MODE" == "cutwidth" ]]; then
   log "cutwidth campaign: minimizing cut_max (MPO bond dimension)"
+  if [[ "$CW_BLOCK" -gt 1 ]]; then
+    log "blocked: supersites of $CW_BLOCK (hidden-bond tag ${SS_TAG:-none});"
+    log "  the objective is the bond dimension of the BLOCKED MPO"
+  fi
   # POLISH_ONLY=1 skips cw-run and the cross-check and only re-polishes an
   # existing campaign's layout (send previous cw_run_* results through phase 6).
   if [[ "${POLISH_ONLY:-0}" == 1 ]]; then
@@ -318,7 +341,7 @@ if [[ "$MODE" == "cutwidth" ]]; then
     C cw-run --heur-time "$TIME_HEUR" --time-per-k "$TIME_PER_K" \
       --ladder-time "$LADDER_TIME" \
       --workers "$WORKERS" --procs "$PROCS" --stall "$STALL" --seed "$SEED" \
-      --symmetry "$SYMMETRY"
+      --symmetry "$SYMMETRY" ${CWFLAGS[@]+"${CWFLAGS[@]}"}
   fi
   read -r LB UB < <(window)
   log "cutwidth window: [$LB, $UB]"
@@ -343,12 +366,12 @@ if [[ "$MODE" == "cutwidth" ]]; then
     elif [[ "${SAT_TIME%.*}" -le 0 ]]; then
       log "SAT cross-check skipped (SAT_TIME=0); certification stands at cpsat"
     else
-      CNF="$STATE_DIR/${CLUSTER}_cw_k${KDEC}.cnf"
-      DRAT="$STATE_DIR/${CLUSTER}_cw_k${KDEC}.drat"
+      CNF="$STATE_DIR/${CLUSTER}_cw${CWTAG}_k${KDEC}.cnf"
+      DRAT="$STATE_DIR/${CLUSTER}_cw${CWTAG}_k${KDEC}.drat"
       C cw-verify --k "$KDEC" --time "$SAT_TIME" --symmetry "$FINAL_SYM" \
-        --cnf-out "$CNF" --proof-out "$DRAT" \
-        > "$STATE_DIR/cw_verify_k${KDEC}.log" 2>&1 || true
-      if grep -q 'recorded (xsat)' "$STATE_DIR/cw_verify_k${KDEC}.log"; then
+        --cnf-out "$CNF" --proof-out "$DRAT" ${CWFLAGS[@]+"${CWFLAGS[@]}"} \
+        > "$STATE_DIR/cw_verify${CWTAG}_k${KDEC}.log" 2>&1 || true
+      if grep -q 'recorded (xsat)' "$STATE_DIR/cw_verify${CWTAG}_k${KDEC}.log"; then
         log "cross-check passed (xsat); DRAT archived at $DRAT"
       else
         log "cross-check inconclusive; certification stands at cpsat level"
@@ -360,15 +383,16 @@ if [[ "$MODE" == "cutwidth" ]]; then
   if [[ "${POLISH_TIME%.*}" -gt 0 ]]; then
     log "phase 6: polishing total interaction range at cutwidth $UB ($(_dur "$POLISH_TIME"))"
     C cw-polish --target "$UB" --time "$POLISH_TIME" --workers "$WORKERS" \
-      --symmetry "$SYMMETRY"
+      --symmetry "$SYMMETRY" ${CWFLAGS[@]+"${CWFLAGS[@]}"}
   fi
-  C cw-export > "$STATE_DIR/${CLUSTER}_cw_permutation.txt"
+  C cw-export ${CWFLAGS[@]+"${CWFLAGS[@]}"} \
+    > "$STATE_DIR/${CLUSTER}_cw${CWTAG}_permutation.txt"
   if [[ "$CLOSED" -eq 1 ]]; then
     log "result: cutwidth c*(${CLUSTER}) = $UB (CERTIFIED); permutation in"
   else
     log "result: best-known cutwidth $UB (lower bound $LB, NOT certified); permutation in"
   fi
-  log "  $STATE_DIR/${CLUSTER}_cw_permutation.txt"
+  log "  $STATE_DIR/${CLUSTER}_cw${CWTAG}_permutation.txt"
   exit 0
 fi
 

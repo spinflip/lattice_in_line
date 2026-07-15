@@ -461,3 +461,72 @@ def test_analyze_mpo_parse_and_correlate():
     assert all(r["source"] == "bw" for r in recs)
     out = amc.correlations(recs)                             # must not raise
     assert 0.0 <= out["cut_r"] <= 1.0 and out["n"] > 20
+
+
+# ----- blocked cutwidth (cw-* --block q: supersites + cutwidth) -----
+
+def test_blocked_cutwidth_sa_and_lb_match_bruteforce():
+    import itertools
+    n, q = 8, 2
+    E = [(i, (i + 1) % n) for i in range(n)]
+
+    def blocked_opt(constrained):
+        best = 10 ** 9
+        for p in itertools.permutations(range(n)):
+            lab = [0] * n
+            for pos, v in enumerate(p):
+                lab[v] = pos // q + 1
+            if constrained and bc.ss_viol(lab, E, q, 0, True) > 0:
+                continue
+            best = min(best, bc.cutwidth_of(lab, E))
+        return best
+
+    opt = blocked_opt(False)
+    assert bc.cutwidth_math_lb(n, E, q) <= opt          # LB validity (blocked)
+    vi, cw, lab = bc._sscw_sa_chain((n, E, q, 0, 2.0, None, 0, False))
+    assert vi == 0 and cw == opt                         # SA reaches the optimum
+    assert sorted(lab) == sorted(list(range(1, n // q + 1)) * q)
+    # constrained: perfect matching along bonds exists on a cycle
+    vi, cw, lab = bc._sscw_sa_chain((n, E, q, 0, 2.0, None, 0, True))
+    assert vi == 0 and cw == blocked_opt(True)
+    assert bc.ss_viol(lab, E, q, 0, True) == 0
+
+
+def test_blocked_cutwidth_of_is_multiplicity_agnostic():
+    # cutwidth_of on block labels: intra edges cancel, cuts sit between blocks
+    E = [(0, 1), (1, 2), (2, 3), (3, 0)]                 # 4-cycle
+    lab = [1, 1, 2, 2]                                    # blocks {0,1} {2,3}
+    # edges (1,2) and (3,0) cross the single block-cut; (0,1),(2,3) are hidden
+    assert bc.cutwidth_of(lab, E) == 2
+
+
+def test_blocked_cutwidth_cpsat_certifies_octahedron():
+    import pytest
+    pytest.importorskip("ortools")
+    n, q = 6, 2
+    E = [(i, (i + 1) % 6) for i in range(6)] + [(i, (i + 2) % 6) for i in range(6)]
+    r1, lab, _ = bc.cpsat_decide_sscw(n, E, q, 6, 30, 4)
+    r0, _, _ = bc.cpsat_decide_sscw(n, E, q, 5, 30, 4)
+    assert r1 == "SAT" and bc.cutwidth_of(lab, E) <= 6   # brute-forced optimum 6
+    assert sorted(lab) == sorted(list(range(1, 4)) * 2)
+    assert r0 == "UNSAT"
+    # hidden-bond constraint honoured
+    rc, labc, note = bc.cpsat_decide_sscw(n, E, q, 6, 30, 4,
+                                          intra_per_block=True)
+    assert rc == "SAT" and bc.ss_viol(labc, E, q, 0, True) == 0
+    assert "internal edge" in note
+
+
+def test_blocked_cutwidth_cnf_matches_cpsat():
+    import pytest
+    pytest.importorskip("pysat")
+    n, q = 6, 2
+    E = [(i, (i + 1) % 6) for i in range(6)] + [(i, (i + 2) % 6) for i in range(6)]
+    for c, want in ((6, "SAT"), (5, "UNSAT")):
+        cl, nv, _ = bc.build_cnf_sscw(n, E, q, c)
+        assert all(abs(x) <= nv for clause in cl for x in clause)
+        vd, mdl, _ = bc.parallel_crosscheck(cl, 30, False)
+        assert set(vd.values()) == {want}
+        if want == "SAT":
+            lab = bc.ss_decode(n, q, [x for x in mdl if x > 0])
+            assert bc.cutwidth_of(lab, E) <= c

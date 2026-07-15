@@ -3040,28 +3040,35 @@ def cutwidth_of(lab, edges):
     return mx
 
 
-def cutwidth_math_lb(n, edges):
+def cutwidth_math_lb(n, edges, q=1):
     """Cheap valid lower bound on the cutwidth: the best of three.
 
     - ceil(maxdeg/2): the max-degree vertex splits its edges left/right of its
-      own position, so the busier side carries >= ceil(deg/2).
+      own position, so the busier side carries >= ceil(deg/2). For blocked
+      layouts (q > 1) up to q-1 of its edges can hide inside its own block, so
+      the term weakens to ceil((maxdeg-(q-1))/2).
     - degree-sum: the cut after the first k positions is crossed by at least
       sum(deg of those k vertices) - 2*(edges among them), which is at least
       (sum of the k smallest degrees) - 2*min(k(k-1)/2, |E|); maximize over k.
     - spectral (Fiedler): for any vertex subset S, e(S, ~S) >= lambda2*|S||~S|/n,
       so every ordering's middle cut gives cutwidth >= lambda2*floor(n/2)*
       ceil(n/2)/n. One Laplacian eigenvalue; on dense graphs this is often far
-      stronger than what the CP-SAT UNSAT ladder can prove in hours."""
+      stronger than what the CP-SAT UNSAT ladder can prove in hours.
+
+    With q > 1 the bound applies to the BLOCKED cutwidth (supersites of q
+    vertices): block-cuts split the vertex set at multiples of q only, so the
+    degree-sum and spectral terms are evaluated at k = q, 2q, ..."""
     if not edges:
         return 0
     adj = adjacency(n, edges)
     degs = sorted(len(a) for a in adj)
-    lb = max(1, ceil_div(degs[-1], 2))
+    lb = max(1, ceil_div(degs[-1] - (q - 1), 2)) if degs[-1] > q - 1 else 1
     m = len(edges)
     acc = 0
     for k in range(1, n + 1):
         acc += degs[k - 1]
-        lb = max(lb, acc - 2 * min(k * (k - 1) // 2, m))
+        if k % q == 0:                        # block-cuts sit at multiples of q
+            lb = max(lb, acc - 2 * min(k * (k - 1) // 2, m))
     try:
         import numpy as np
         L = np.zeros((n, n))
@@ -3072,8 +3079,10 @@ def cutwidth_math_lb(n, edges):
             L[v, u] -= 1.0
         lam2 = float(np.linalg.eigvalsh(L)[1])
         if lam2 > 1e-9:
-            # small slack guards the ceil against float noise in lambda2
-            lb = max(lb, math.ceil(lam2 * (n // 2) * ((n + 1) // 2) / n - 1e-6))
+            k = ((n // q) // 2) * q           # block-cut closest to the middle
+            if k > 0:
+                # small slack guards the ceil against float noise in lambda2
+                lb = max(lb, math.ceil(lam2 * k * (n - k) / n - 1e-6))
     except ImportError:                       # numpy absent: skip spectral term
         pass
     return lb
@@ -3092,8 +3101,20 @@ class CutwidthState(State):
 
 
 def cw_state(args, n, edges):
-    return CutwidthState(args.state_dir, f"{args.cluster or 'edgefile'}__cw",
-                         n, edges)
+    """State for cutwidth runs. --block q > 1 minimizes the BLOCKED cutwidth
+    (supersites of q vertices) and gets its own multiplicity-q state file, plus
+    hidden-bond tags -- constrained certificates are conditional on the
+    constraints and must never mix with the plain (or differently-constrained)
+    window. q = 1 keeps the original plain name for backward compatibility."""
+    q = getattr(args, "block", 1) or 1
+    name = f"{args.cluster or 'edgefile'}__cw"
+    if q > 1:
+        name += str(q)
+        if getattr(args, "min_intra_edges", 0):
+            name += f"_ie{args.min_intra_edges}"
+        if getattr(args, "intra_per_block", False):
+            name += "_ipb"
+    return CutwidthState(args.state_dir, name, n, edges, mult=q)
 
 
 def _cw_sa_chain(payload):
@@ -3200,6 +3221,114 @@ def sa_cutwidth(n, edges, init, seed, t_budget, procs=1, stall=None):
                     last_improve = time.time()
                     print(f"[cw-heuristic] new upper bound: {best_cw}")
     return best_cw, best_lab
+
+
+def _sscw_sa_chain(payload):
+    """One blocked-cutwidth annealing chain (picklable). lab[v] = block index
+    1..m, exactly q per block; moves are cross-block vertex swaps. Cost is
+    lexicographic (hidden-bond violation, cut_max over block-cuts, total block
+    range) with violation-first annealing (reuses _ss_accept_delta). Returns
+    (viol, cut_max, labeling)."""
+    n, edges, q, seed, t_budget, init, min_intra, per_block = payload
+    rng = random.Random(seed)
+    lab = init[:] if init else [(i // q) + 1 for i in range(n)]
+    if not init:
+        rng.shuffle(lab)
+    m = n // q
+
+    def cost(l):
+        inc = [0] * (m + 2)
+        s = 0
+        for u, v in edges:
+            a, b = (l[u], l[v]) if l[u] < l[v] else (l[v], l[u])
+            inc[a] += 1
+            inc[b] -= 1
+            s += b - a
+        cur = mx = 0
+        for p in range(1, m):
+            cur += inc[p]
+            if cur > mx:
+                mx = cur
+        viol = 0
+        if min_intra or per_block:
+            covered = set()
+            n_in = 0
+            for u, v in edges:
+                if l[u] == l[v]:
+                    n_in += 1
+                    covered.add(l[u])
+            viol = max(0, min_intra - n_in)
+            if per_block:
+                viol += m - len(covered)
+        return viol, mx, s
+
+    vi, mx, c = cost(lab)
+    best, bv, bm, bc = lab[:], vi, mx, c
+    t_end = time.time() + t_budget
+    T = max(2.0, bm / 4)
+    while time.time() < t_end and (bm > 0 or bv > 0):
+        for _ in range(2000):
+            a, b = rng.randrange(n), rng.randrange(n)
+            if a == b or lab[a] == lab[b]:
+                continue                       # swap across blocks only
+            lab[a], lab[b] = lab[b], lab[a]
+            v2, m2, c2 = cost(lab)
+            if (v2, m2, c2) <= (vi, mx, c):
+                accept = True
+            else:
+                delta = _ss_accept_delta(v2, m2, c2, vi, mx, c)
+                accept = delta <= 0 or (delta / T < 700
+                                        and rng.random() < math.exp(-delta / T))
+            if accept:
+                vi, mx, c = v2, m2, c2
+                if (vi, mx, c) < (bv, bm, bc):
+                    best, bv, bm, bc = lab[:], vi, mx, c
+            else:
+                lab[a], lab[b] = lab[b], lab[a]
+        T = max(0.05, T * 0.95)
+    return bv, bm, best
+
+
+def sa_sscw(n, edges, q, init, seed, t_budget, procs=1, target=0, stall=None,
+            min_intra=0, per_block=False):
+    """Parallel multi-start blocked-cutwidth SA. Returns (viol, cut, labeling);
+    viol > 0 means the hidden-bond constraints could not be satisfied and the
+    labeling must NOT be recorded as an upper bound for the constrained run."""
+    best_lab = init[:] if init else [(i // q) + 1 for i in range(n)]
+    best_cw = cutwidth_of(best_lab, edges)
+    best_vi = ss_viol(best_lab, edges, q, min_intra, per_block)
+    if best_vi == 0 and best_cw <= target:
+        return 0, best_cw, best_lab
+    if procs <= 1:
+        return _sscw_sa_chain((n, edges, q, seed, t_budget, init,
+                               min_intra, per_block))
+    if stall is None or stall <= 0:
+        stall = max(60.0, t_budget / 10)
+    t_end = time.time() + t_budget
+    last_improve = time.time()
+    batch = max(15.0, min(stall / 2, t_budget / 4))
+    r = 0
+    with mp.Pool(procs) as pool:
+        while time.time() < t_end and (best_cw > target or best_vi > 0):
+            if time.time() - last_improve > stall:
+                print(f"[cw-heuristic] no improvement for {stall:.0f}s "
+                      f"({stall / 3600:.2f}h); stopping early at UB {best_cw}")
+                break
+            dur = min(batch, t_end - time.time())
+            if dur <= 1:
+                break
+            jobs = [(n, edges, q, seed + r * procs + p, dur,
+                     best_lab if p % 2 == 0 else None, min_intra, per_block)
+                    for p in range(procs)]
+            r += 1
+            for vi, cw, lab in pool.imap_unordered(_sscw_sa_chain, jobs):
+                if (vi, cw) < (best_vi, best_cw):
+                    best_vi, best_cw, best_lab = vi, cw, lab
+                    last_improve = time.time()
+                    print(f"[cw-heuristic] new blocked upper bound: {best_cw}"
+                          + (f" (constraint violation {best_vi})"
+                             if best_vi else ""))
+    return best_vi, best_cw, best_lab
 
 
 def _cutwidth_cpsat_model(model, n, edges, c, symmetry="reversal",
@@ -3327,6 +3456,262 @@ def cpsat_polish_cutwidth(n, edges, c, time_limit, workers, hint=None,
     return tag, lab, tr, solver.BestObjectiveBound(), note
 
 
+def _sscw_cpsat_model(model, n, edges, q, c, symmetry="reversal",
+                      fix_label1=None, min_intra=0, intra_per_block=False):
+    """Blocked-cutwidth CP-SAT core: R[v] in 0..m-1 with exactly q vertices per
+    block (cpsat_decide_ss's cardinality channeling); left/cross channeling
+    caps every block-cut at c crossing edges (_cutwidth_cpsat_model's
+    structure); optional hidden-bond constraints -- an intra-block edge crosses
+    no cut at all, so hiding bonds directly relieves every cut it would have
+    spanned. Returns (R vars, note)."""
+    m = ss_m(n, q)
+    R = [model.NewIntVar(0, m - 1, f"r{v}") for v in range(n)]
+    B = {}
+    for v in range(n):
+        for r in range(m):
+            b = model.NewBoolVar(f"b{v}_{r}")
+            model.Add(R[v] == r).OnlyEnforceIf(b)
+            model.Add(R[v] != r).OnlyEnforceIf(b.Not())
+            B[v, r] = b
+    for r in range(m):
+        model.Add(sum(B[v, r] for v in range(n)) == q)
+    left = {}
+    for v in range(n):
+        for b in range(m - 1):
+            lv = model.NewBoolVar(f"l{v}_{b}")
+            model.Add(R[v] <= b).OnlyEnforceIf(lv)
+            model.Add(R[v] >= b + 1).OnlyEnforceIf(lv.Not())
+            left[v, b] = lv
+    for b in range(m - 1):
+        crs = []
+        for (u, v) in edges:
+            x = model.NewBoolVar(f"x{u}_{v}_{b}")
+            a, d = left[u, b], left[v, b]
+            model.Add(x <= a + d)
+            model.Add(x >= a - d)
+            model.Add(x >= d - a)
+            model.Add(x <= 2 - a - d)
+            crs.append(x)
+        model.Add(sum(crs) <= c)
+    cnotes = []
+    if min_intra:
+        bs = []
+        for u, v in edges:
+            d = model.NewIntVar(0, m - 1, f"d{u}_{v}")
+            model.AddAbsEquality(d, R[u] - R[v])
+            b = model.NewBoolVar(f"in{u}_{v}")
+            model.Add(d == 0).OnlyEnforceIf(b)
+            model.Add(d != 0).OnlyEnforceIf(b.Not())
+            bs.append(b)
+        model.Add(sum(bs) >= min_intra)
+        cnotes.append(f">={min_intra} intra-block edges")
+    if intra_per_block:
+        for r in range(m):
+            lits = []
+            for u, v in edges:
+                e = model.NewBoolVar(f"e{u}_{v}_{r}")
+                model.AddImplication(e, B[u, r])
+                model.AddImplication(e, B[v, r])
+                lits.append(e)
+            model.AddBoolOr(lits)
+        cnotes.append("every block has an internal edge")
+    # symmetry breaking (blocked cutwidth is block-order-reversal invariant)
+    reps = None
+    if symmetry == "orbit" and fix_label1 is None:
+        res = orbit_representatives(n, edges)
+        if res is not None:
+            reps = res[0]
+    if fix_label1 is not None:
+        model.Add(R[fix_label1] == 0)
+        note = f"vertex {fix_label1} fixed to block 0"
+    elif reps and len(reps) == 1:
+        model.Add(R[reps[0]] == 0)
+        note = f"vertex-transitive: vertex {reps[0]} fixed to block 0"
+    elif reps:
+        bools = []
+        for rr in reps:
+            bb = model.NewBoolVar(f"rep{rr}")
+            model.Add(R[rr] == 0).OnlyEnforceIf(bb)
+            bools.append(bb)
+        model.AddBoolOr(bools)
+        note = f"block 0 contains one of {len(reps)} orbit reps"
+    else:
+        adj = adjacency(n, edges)
+        w = max(range(n), key=lambda x: len(adj[x]))
+        model.Add(R[w] <= (m - 1) // 2)
+        note = f"reversal: vertex {w} pinned to blocks 0..{(m - 1) // 2}"
+    if cnotes:
+        note += "; " + "; ".join(cnotes)
+    return R, note
+
+
+def cpsat_decide_sscw(n, edges, q, c, time_limit, workers, hint=None,
+                      symmetry="reversal", fix_label1=None, log=False,
+                      min_intra=0, intra_per_block=False):
+    """CP-SAT decision sat(G, blocked cutwidth <= c) for supersites of q.
+    Returns (verdict, 1-based block labeling_or_None, note)."""
+    from ortools.sat.python import cp_model
+    model = cp_model.CpModel()
+    R, note = _sscw_cpsat_model(model, n, edges, q, c, symmetry, fix_label1,
+                                min_intra, intra_per_block)
+    if hint is not None:
+        for v in range(n):
+            model.AddHint(R[v], hint[v] - 1)
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit
+    solver.parameters.num_search_workers = workers
+    if log:
+        solver.parameters.log_search_progress = True
+    status = solver.Solve(model)
+    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return "SAT", [solver.Value(R[v]) + 1 for v in range(n)], note
+    if status == cp_model.INFEASIBLE:
+        return "UNSAT", None, note
+    return "UNKNOWN", None, note
+
+
+def cpsat_polish_sscw(n, edges, q, c, time_limit, workers, hint=None,
+                      symmetry="reversal", fix_label1=None, log=False,
+                      min_intra=0, intra_per_block=False, on_improve=None):
+    """Among blockings with blocked cutwidth <= c (and the hidden-bond
+    constraints satisfied), minimize the total block-interaction range. Mirrors
+    cpsat_polish_cutwidth, including the resumable on_improve callback."""
+    from ortools.sat.python import cp_model
+    model = cp_model.CpModel()
+    R, note = _sscw_cpsat_model(model, n, edges, q, c, symmetry, fix_label1,
+                                min_intra, intra_per_block)
+    m = ss_m(n, q)
+    dvars = []
+    for u, v in edges:
+        d = model.NewIntVar(0, m - 1, f"pd{u}_{v}")
+        model.AddAbsEquality(d, R[u] - R[v])
+        dvars.append(d)
+    model.Minimize(sum(dvars))
+    if hint is not None:
+        for v in range(n):
+            model.AddHint(R[v], hint[v] - 1)
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit
+    solver.parameters.num_search_workers = workers
+    if log:
+        solver.parameters.log_search_progress = True
+    cb = None
+    if on_improve is not None:
+        class _Recorder(cp_model.CpSolverSolutionCallback):
+            def on_solution_callback(self):
+                lab = [int(self.Value(R[v])) + 1 for v in range(n)]
+                on_improve(lab, sum(abs(lab[u] - lab[v]) for u, v in edges))
+        cb = _Recorder()
+    status = solver.Solve(model, cb) if cb else solver.Solve(model)
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return "NONE", None, None, None, note
+    lab = [solver.Value(R[v]) + 1 for v in range(n)]
+    tr = sum(abs(lab[u] - lab[v]) for u, v in edges)
+    tag = "OPTIMAL" if status == cp_model.OPTIMAL else "FEASIBLE"
+    return tag, lab, tr, solver.BestObjectiveBound(), note
+
+
+def build_cnf_sscw(n, edges, q, c, fix_label1=None, symmetry="reversal",
+                   min_intra=0, intra_per_block=False):
+    """CNF for 'blocked cutwidth <= c'. One-hot x[v,r] = var(v,r) = v*m + r
+    (r = 1..m, build_cnf_ss's convention, so ss_decode reads the model);
+    exactly-one block per vertex, exactly-q vertices per block; left[v,b] via
+    reified OR over r <= b; cross[e,b] XOR; at-most-c crossings per block-cut
+    (Sinz); optional hidden-bond constraints matching cpsat_decide_sscw so
+    cw-verify cross-checks the SAME decision."""
+    m = ss_m(n, q)
+
+    def var(v, r):
+        return v * m + r
+
+    clauses = []
+    next_aux = n * m + 1
+
+    def at_most(lits, bound):
+        nonlocal next_aux
+        next_aux = _sinz_at_most(clauses, next_aux, lits, bound)
+
+    def exactly(lits, cc):
+        at_most(lits, cc)
+        at_most([-x for x in lits], len(lits) - cc)   # at least cc
+
+    for v in range(n):
+        lits = [var(v, r) for r in range(1, m + 1)]
+        clauses.append(lits[:])                       # at least one block
+        at_most(lits, 1)
+    for r in range(1, m + 1):
+        exactly([var(v, r) for v in range(n)], q)
+
+    left = {}
+    for v in range(n):
+        for b in range(1, m):
+            lvar = next_aux
+            next_aux += 1
+            left[v, b] = lvar
+            ors = [var(v, r) for r in range(1, b + 1)]
+            clauses.append([-lvar] + ors)             # L -> (block <= b)
+            for x in ors:
+                clauses.append([-x, lvar])            # (v in r<=b) -> L
+    for b in range(1, m):
+        cross_lits = []
+        for (u, v) in edges:
+            xb = next_aux
+            next_aux += 1
+            lu, lv = left[u, b], left[v, b]
+            clauses.append([-xb, lu, lv])
+            clauses.append([-xb, -lu, -lv])
+            clauses.append([xb, -lu, lv])
+            clauses.append([xb, lu, -lv])
+            cross_lits.append(xb)
+        next_aux = _sinz_at_most(clauses, next_aux, cross_lits, c)
+
+    # hidden-bond constraints (mirror build_cnf_ss)
+    cnotes = []
+    if min_intra or intra_per_block:
+        e_of = {}
+        for (u, v) in edges:
+            for r in range(1, m + 1):
+                e = next_aux
+                next_aux += 1
+                clauses.append([-e, var(u, r)])
+                clauses.append([-e, var(v, r)])
+                e_of[u, v, r] = e
+        if intra_per_block:
+            for r in range(1, m + 1):
+                clauses.append([e_of[u, v, r] for (u, v) in edges])
+            cnotes.append("every block has an internal edge")
+        if min_intra:
+            ts = []
+            for (u, v) in edges:
+                t = next_aux
+                next_aux += 1
+                clauses.append([-t] + [e_of[u, v, r] for r in range(1, m + 1)])
+                ts.append(t)
+            at_most([-t for t in ts], len(ts) - min_intra)
+            cnotes.append(f">={min_intra} intra-block edges")
+
+    reps = None
+    if symmetry == "orbit" and fix_label1 is None:
+        res = orbit_representatives(n, edges)
+        if res is not None:
+            reps = res[0]
+    if fix_label1 is not None:
+        clauses.append([var(fix_label1, 1)])
+        note = f"vertex {fix_label1} fixed to block 0"
+    elif reps:
+        clauses.append([var(rr, 1) for rr in reps])
+        note = f"block 0 contains one of {len(reps)} orbit reps"
+    else:
+        adj = adjacency(n, edges)
+        w = max(range(n), key=lambda x: len(adj[x]))
+        for r in range((m - 1) // 2 + 2, m + 1):
+            clauses.append([-var(w, r)])
+        note = f"reversal: vertex {w} pinned to blocks 0..{(m - 1) // 2}"
+    if cnotes:
+        note += "; " + "; ".join(cnotes)
+    return clauses, next_aux - 1, note
+
+
 def build_cnf_cw(n, edges, c, fix_label1=None, symmetry="reversal"):
     """CNF for 'cutwidth <= c'. var(v,p)=v*n+p, position p in 1..n; exactly-one
     per vertex and per position; left[v,b] via reified OR; cross[e,b] XOR;
@@ -3397,20 +3782,53 @@ def cw_decode(n, model_lits):
     return lab
 
 
+def _cw_q(args, edges):
+    """(q, min_intra, per_block) from the cw CLI flags. q = 1 is the plain
+    permutation mode; q > 1 minimizes the BLOCKED cutwidth over supersites of
+    q vertices, optionally under the ss hidden-bond constraints."""
+    q = getattr(args, "block", 1) or 1
+    if q > 1:
+        return q, *ss_constraints(args, edges)
+    if getattr(args, "min_intra_edges", 0) or getattr(args, "intra_per_block",
+                                                      False):
+        sys.exit("hidden-bond constraints require --block > 1")
+    return 1, 0, False
+
+
 def cmd_cw_run(args):
     n, edges = get_graph(args)
+    q, min_intra, per_block = _cw_q(args, edges)
+    if q > 1:
+        ss_m(n, q)                           # validates q | n
     st = cw_state(args, n, edges)
-    lbm = cutwidth_math_lb(n, edges)
+    lbm = cutwidth_math_lb(n, edges, q)
     st.record_math_lb(lbm)
     if lbm > 1:
         st.record_unsat(lbm - 1, "math")
-    print(f"[cw] cutwidth campaign: {n} sites, {len(edges)} edges; "
+    blocked = f" (supersites of {q})" if q > 1 else ""
+    print(f"[cw] cutwidth campaign{blocked}: {n} sites, {len(edges)} edges; "
           f"math lower bound {lbm}")
+    if min_intra or per_block:
+        print("[cw] hidden-bond constraints: "
+              + ", ".join(([f">={min_intra} intra edges"] if min_intra else [])
+                          + (["every block internally bonded"] if per_block
+                             else [])))
     cur = st.read()
     if cur["best_labeling"] is None:
-        cw, lab = sa_cutwidth(n, edges, None, args.seed, args.heur_time,
-                              procs=args.procs, stall=args.stall)
-        st.record_labeling(lab, "cw-heuristic")
+        if q == 1:
+            cw, lab = sa_cutwidth(n, edges, None, args.seed, args.heur_time,
+                                  procs=args.procs, stall=args.stall)
+            st.record_labeling(lab, "cw-heuristic")
+        else:
+            vi, cw, lab = sa_sscw(n, edges, q, None, args.seed, args.heur_time,
+                                  procs=args.procs, target=lbm,
+                                  stall=args.stall, min_intra=min_intra,
+                                  per_block=per_block)
+            if vi == 0:
+                st.record_labeling(lab, "cw-heuristic")
+            else:
+                print(f"[cw] heuristic ended with constraint violation {vi}; "
+                      f"no upper bound recorded (CP-SAT searches from scratch)")
         cur = st.read()
     # Overall wall-clock budget for the whole ladder. Without it, a wide window
     # (dense graph) marches through dozens of decisions at up to time_per_k each
@@ -3431,6 +3849,11 @@ def cmd_cw_run(args):
         lb, ub = State.window(cur)
         if ub is not None and lb >= ub:
             break
+        if lb > len(edges):
+            print("[cw-run] lower bound exceeds |E|: the hidden-bond "
+                  "constraints are infeasible on this graph (e.g. no perfect "
+                  "matching along bonds for q=2)")
+            break
         if not sat_dead and ub is not None:
             side = 0                         # try to lower the upper bound
         elif not unsat_dead:
@@ -3446,10 +3869,18 @@ def cmd_cw_run(args):
         dt = args.time_per_k
         if ladder_time > 0:
             dt = min(dt, max(1.0, ladder_time - (time.time() - t0)))
-        res, lab, _ = cpsat_decide_cutwidth(n, edges, k, dt,
+        if q == 1:
+            res, lab, _ = cpsat_decide_cutwidth(n, edges, k, dt,
+                                                args.workers, hint=hint,
+                                                symmetry=args.symmetry,
+                                                fix_label1=args.fix_label1)
+        else:
+            res, lab, _ = cpsat_decide_sscw(n, edges, q, k, dt,
                                             args.workers, hint=hint,
                                             symmetry=args.symmetry,
-                                            fix_label1=args.fix_label1)
+                                            fix_label1=args.fix_label1,
+                                            min_intra=min_intra,
+                                            intra_per_block=per_block)
         if res == "SAT":
             st.record_labeling(lab, f"cw-run(k={k})")
         elif res == "UNSAT":
@@ -3471,12 +3902,21 @@ def cmd_cw_run(args):
 
 def cmd_cw_decide(args):
     n, edges = get_graph(args)
+    q, min_intra, per_block = _cw_q(args, edges)
     st = cw_state(args, n, edges)
     hint = st.read()["best_labeling"]
-    res, lab, note = cpsat_decide_cutwidth(n, edges, args.k, args.time,
+    if q == 1:
+        res, lab, note = cpsat_decide_cutwidth(n, edges, args.k, args.time,
+                                               args.workers, hint=hint,
+                                               symmetry=args.symmetry,
+                                               fix_label1=args.fix_label1)
+    else:
+        res, lab, note = cpsat_decide_sscw(n, edges, q, args.k, args.time,
                                            args.workers, hint=hint,
                                            symmetry=args.symmetry,
-                                           fix_label1=args.fix_label1)
+                                           fix_label1=args.fix_label1,
+                                           min_intra=min_intra,
+                                           intra_per_block=per_block)
     print(f"[cw-decide c={args.k}] {res}  (symmetry: {note})")
     if res == "SAT":
         st.record_labeling(lab, f"cw-decide(c={args.k})")
@@ -3486,15 +3926,31 @@ def cmd_cw_decide(args):
     print(f"[cw] window now [{lb},{ub}]")
 
 
+def _cw_cnf(args, n, edges):
+    """Build the CNF for the (possibly blocked) cutwidth decision at --k."""
+    q, min_intra, per_block = _cw_q(args, edges)
+    if q == 1:
+        clauses, nvars, note = build_cnf_cw(n, edges, args.k,
+                                            fix_label1=args.fix_label1,
+                                            symmetry=args.symmetry)
+        conv = "var(v,p) = v*n + p, position p in 1..n"
+    else:
+        clauses, nvars, note = build_cnf_sscw(n, edges, q, args.k,
+                                              fix_label1=args.fix_label1,
+                                              symmetry=args.symmetry,
+                                              min_intra=min_intra,
+                                              intra_per_block=per_block)
+        conv = f"var(v,r) = v*m + r, m = {n // q}, block index r-1"
+    return q, clauses, nvars, note, conv
+
+
 def cmd_cw_cnf(args):
     n, edges = get_graph(args)
-    clauses, nvars, note = build_cnf_cw(n, edges, args.k,
-                                        fix_label1=args.fix_label1,
-                                        symmetry=args.symmetry)
+    q, clauses, nvars, note, conv = _cw_cnf(args, n, edges)
+    blocked = f" blocked (q={q})" if q > 1 else ""
     write_dimacs(args.out, clauses, nvars,
-                 [f"cutwidth decision, c={args.k}, n={n}, |E|={len(edges)}",
-                  "var(v,p) = v*n + p, position p in 1..n",
-                  f"symmetry: {note}"])
+                 [f"cutwidth{blocked} decision, c={args.k}, n={n}, "
+                  f"|E|={len(edges)}", conv, f"symmetry: {note}"])
     print(f"wrote {args.out}: {nvars} vars, {len(clauses)} clauses "
           f"(symmetry: {note})")
 
@@ -3502,15 +3958,14 @@ def cmd_cw_cnf(args):
 def cmd_cw_verify(args):
     n, edges = get_graph(args)
     st = cw_state(args, n, edges)
-    clauses, nvars, note = build_cnf_cw(n, edges, args.k,
-                                        fix_label1=args.fix_label1,
-                                        symmetry=args.symmetry)
+    q, clauses, nvars, note, _conv = _cw_cnf(args, n, edges)
     vd, mdl, proof = parallel_crosscheck(clauses, args.time,
                                          args.proof_out is not None)
     verdicts = list(vd.values())
     if args.cnf_out:
         write_dimacs(args.cnf_out, clauses, nvars,
-                     [f"cutwidth c={args.k}", f"symmetry: {note}"])
+                     [f"cutwidth c={args.k}" + (f" q={q}" if q > 1 else ""),
+                      f"symmetry: {note}"])
     if args.proof_out and proof is not None:
         with open(args.proof_out, "w") as f:
             f.write("\n".join(proof) + "\n")
@@ -3519,7 +3974,8 @@ def cmd_cw_verify(args):
         st.record_unsat(args.k, "xsat")
         print("[cw-verify] both solvers UNSAT -> recorded (xsat)")
     elif "SAT" in verdicts and mdl is not None:
-        lab = cw_decode(n, [x for x in mdl if x > 0])
+        lits = [x for x in mdl if x > 0]
+        lab = cw_decode(n, lits) if q == 1 else ss_decode(n, q, lits)
         if cutwidth_of(lab, edges) <= args.k:
             st.record_labeling(lab, f"cw-pysat(k={args.k})")
     lb, ub = State.window(st.read())
@@ -3533,6 +3989,7 @@ def cmd_cw_polish(args):
     range tie-break in record_labeling keeps it only if it does not raise
     cutwidth and lowers the range."""
     n, edges = get_graph(args)
+    q, min_intra, per_block = _cw_q(args, edges)
     st = cw_state(args, n, edges)
     cur = st.read()
     _, ub = State.window(cur)
@@ -3548,10 +4005,17 @@ def cmd_cw_polish(args):
     # if interrupted, the best so far is already saved; a re-run continues.
     def _record(lab, tr):
         st.record_labeling(lab, f"cw-polish(c={c})")
-    status, lab, tr, lb, note = cpsat_polish_cutwidth(
-        n, edges, c, args.time, args.workers, hint=hint,
-        symmetry=args.symmetry, fix_label1=args.fix_label1, log=args.log,
-        on_improve=_record)
+    if q == 1:
+        status, lab, tr, lb, note = cpsat_polish_cutwidth(
+            n, edges, c, args.time, args.workers, hint=hint,
+            symmetry=args.symmetry, fix_label1=args.fix_label1, log=args.log,
+            on_improve=_record)
+    else:
+        status, lab, tr, lb, note = cpsat_polish_sscw(
+            n, edges, q, c, args.time, args.workers, hint=hint,
+            symmetry=args.symmetry, fix_label1=args.fix_label1, log=args.log,
+            min_intra=min_intra, intra_per_block=per_block,
+            on_improve=_record)
     if lab is None:
         print("[cw-polish] no solution within the time limit")
         return
@@ -3568,12 +4032,18 @@ def cmd_cw_polish(args):
 
 def cmd_cw_export(args):
     n, edges = get_graph(args)
+    q, min_intra, per_block = _cw_q(args, edges)
     st = cw_state(args, n, edges)
     cur = st.read()
     if not cur["best_labeling"]:
         sys.exit("no cutwidth assignment in the state yet")
     lab = cur["best_labeling"]
     print("cutwidth of this assignment:", cutwidth_of(lab, edges))
+    if q > 1:
+        n_in, uncovered = ss_intra_report(lab, edges, q)
+        print(f"blocked (supersites of {q}): {n_in} edges hidden inside "
+              f"blocks, {uncovered} blocks without an internal edge")
+        print("(map is {site: 0-based block index})")
     print("{" + ", ".join(f"{v}: {lab[v] - 1}" for v in range(n)) + "}")
 
 
@@ -3861,7 +4331,19 @@ def main():
     p.set_defaults(fn=cmd_ss_blocks)
 
     # ---- cutwidth mode (minimize MPO bond dimension) ----
-    p = sub.add_parser("cw-run"); common(p)
+    def cwblock(p):
+        p.add_argument("--block", type=int, default=1,
+                       help="supersite size q (default 1 = plain permutation); "
+                            "q > 1 minimizes the BLOCKED cutwidth, i.e. the "
+                            "bond dimension of the blocked MPO")
+        p.add_argument("--min-intra-edges", type=int, default=0,
+                       help="(with --block) require >= N edges hidden inside "
+                            "supersites")
+        p.add_argument("--intra-per-block", action="store_true",
+                       help="(with --block) require every supersite to contain "
+                            "an interaction edge")
+
+    p = sub.add_parser("cw-run"); common(p); cwblock(p)
     p.add_argument("--heur-time", type=float, default=120.0)
     p.add_argument("--time-per-k", type=float, default=300.0)
     p.add_argument("--ladder-time", type=float, default=14400.0,
@@ -3873,25 +4355,25 @@ def main():
     p.add_argument("--stall", type=float, default=None)
     p.add_argument("--seed", type=int, default=0)
     p.set_defaults(fn=cmd_cw_run)
-    p = sub.add_parser("cw-decide"); common(p, needs_k=True)
+    p = sub.add_parser("cw-decide"); common(p, needs_k=True); cwblock(p)
     p.add_argument("--time", type=float, default=300.0)
     p.add_argument("--workers", type=int, default=8)
     p.set_defaults(fn=cmd_cw_decide)
-    p = sub.add_parser("cw-cnf"); common(p, needs_k=True)
+    p = sub.add_parser("cw-cnf"); common(p, needs_k=True); cwblock(p)
     p.add_argument("--out", required=True)
     p.set_defaults(fn=cmd_cw_cnf)
-    p = sub.add_parser("cw-verify"); common(p, needs_k=True)
+    p = sub.add_parser("cw-verify"); common(p, needs_k=True); cwblock(p)
     p.add_argument("--time", type=float, default=300.0)
     p.add_argument("--cnf-out", default=None)
     p.add_argument("--proof-out", default=None)
     p.set_defaults(fn=cmd_cw_verify)
-    p = sub.add_parser("cw-polish"); common(p)
+    p = sub.add_parser("cw-polish"); common(p); cwblock(p)
     p.add_argument("--target", type=int, default=None,
                    help="hold cutwidth <= this (default: current UB)")
     p.add_argument("--time", type=float, default=1800.0)
     p.add_argument("--workers", type=int, default=8)
     p.set_defaults(fn=cmd_cw_polish)
-    p = sub.add_parser("cw-export"); common(p)
+    p = sub.add_parser("cw-export"); common(p); cwblock(p)
     p.set_defaults(fn=cmd_cw_export)
 
     # ---- equivariant ansatz (needs cluster_generator.py) ----
