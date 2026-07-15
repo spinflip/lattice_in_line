@@ -311,10 +311,24 @@ def main() -> None:
 
     correlations(recs)
     rows = divergence(recs)
+    n_daux = sum(1 for r in recs if "daux_max" in r)
     if not args.no_plot:
-        plot_bonddim(recs, args.out_prefix)
-        plot_bonddim_bandwidth(recs, args.out_prefix)
-        plot_divergence(recs, rows, args.out_prefix)
+        # up-front, on stdout, so a skip is never silent
+        if _plt() is None:
+            print("[plot] NO FIGURES WRITTEN: matplotlib is not available in "
+                  "this Python interpreter. Install it with\n"
+                  "         pip install matplotlib\n"
+                  "       (or `pip install -e .[plot]` from the repo), then re-run.")
+        elif n_daux == 0:
+            print("[plot] NO FIGURES WRITTEN: none of the parsed entries carry "
+                  "MPO dAux comment stats (# MPO dAux_avg=.., dAux_max=..).\n"
+                  "       The plots need those; the permutation tables must "
+                  "include them.")
+        else:
+            print(f"[plot] writing figures under {os.path.dirname(args.out_prefix)}/ ...")
+            plot_bonddim(recs, args.out_prefix)
+            plot_bonddim_bandwidth(recs, args.out_prefix)
+            plot_divergence(recs, rows, args.out_prefix)
 
 
 if __name__ == "__main__":
