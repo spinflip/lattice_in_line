@@ -282,11 +282,14 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
             ax.annotate(r["cluster"], (r["bw_cwopt"], r["cut_cwopt"]),
                         color="red", xytext=(4, -2), textcoords="offset points",
                         fontsize=8)
-    ax.legend(handles=[
+    marker_legend = ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
-               markeredgecolor="k", label="bandwidth-opt"),
+               markeredgecolor="k", label="bandwidth-optimal"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
-               markeredgecolor="k", label="cutwidth-opt"),
+               markeredgecolor="k", label="cutwidth-optimal"),
+    ], loc="upper left", framealpha=0.95)
+    ax.add_artist(marker_legend)
+    ax.legend(handles=[
         Line2D([], [], color="red", lw=2, label="diverge (cutwidth drops > 2)"),
         Line2D([], [], color="darkorange", lw=2, label="cutwidth drops 2"),
         Line2D([], [], color="gold", lw=2, label="cutwidth drops 1"),
