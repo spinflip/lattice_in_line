@@ -15,9 +15,11 @@ permutations_sat_cutwidth.py (cutwidth-optimized layouts), then:
      divergence (how much the bandwidth-optimal ordering costs in cutwidth, and
      how much bandwidth the cutwidth-optimal ordering wastes).
 
-Two figures are written (PNG at 300 dpi + vector PDF) under the repo's plots/
+Three figures are written (PNG at 300 dpi + vector PDF) under the repo's plots/
 folder by default:
-  plots/mpo_bonddim.png     d_aux^max vs bandwidth | vs cutwidth, with r / rho
+  plots/mpo_bonddim.png     the two matched pairings: peak d_aux^max vs cutwidth
+                            (the DMRG cost driver) | mean d_aux^avg vs envelope
+  plots/mpo_bandwidth.png   peak d_aux^max vs bandwidth (the proxy-of-a-proxy)
   plots/mpo_divergence.png  arrows from the bandwidth-opt to the cutwidth-opt
                             layout of each shared cluster in (bandwidth, cutwidth)
 
@@ -101,11 +103,20 @@ def correlations(recs: List[Dict]) -> Dict:
         "cut_r": pearson(cut, dam), "cut_rho": spearman(cut, dam),
     }
     print("=" * 68)
-    print(f"MPO bond dimension d_aux^max over {len(have)} DMRG-measured layouts")
-    print(f"  vs bandwidth : Pearson {out['bw_r']:.3f}   Spearman {out['bw_rho']:.3f}")
+    print(f"peak MPO bond dim d_aux^max over {len(have)} DMRG-measured layouts")
     print(f"  vs cutwidth  : Pearson {out['cut_r']:.3f}   Spearman {out['cut_rho']:.3f}")
+    print(f"  vs bandwidth : Pearson {out['bw_r']:.3f}   Spearman {out['bw_rho']:.3f}")
     winner = "cutwidth" if out["cut_r"] > out["bw_r"] else "bandwidth"
-    print(f"  -> {winner} is the better predictor of the MPO bond dimension")
+    print(f"  -> {winner} is the better predictor of the peak bond dimension")
+    have_avg = [r for r in have if "daux_avg" in r]
+    if have_avg:
+        env = np.array([r["envelope"] for r in have_avg], dtype=float)
+        daa = np.array([r["daux_avg"] for r in have_avg], dtype=float)
+        out["env_r"] = pearson(env, daa)
+        print(f"mean MPO bond dim d_aux^avg over {len(have_avg)} layouts")
+        print(f"  vs envelope  : Pearson {out['env_r']:.3f}   "
+              f"Spearman {spearman(env, daa):.3f}  "
+              f"(near-identity: avg cut-load = R*|E|/(n-1))")
     print("=" * 68)
     return out
 
@@ -153,47 +164,71 @@ def _save(fig, prefix: str, name: str) -> None:
     print(f"[plot] wrote {prefix}_{name}.png (300 dpi) and {prefix}_{name}.pdf")
 
 
+def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
+           ylabel: str, title: str) -> None:
+    """Scatter ykey vs xkey coloured/marked by source, with a separate
+    least-squares fit (+ r, slope in the legend) per layout family and the
+    pooled Pearson r in the title."""
+    from matplotlib.lines import Line2D
+    x = np.array([r[xkey] for r in have], dtype=float)
+    y = np.array([r[ykey] for r in have], dtype=float)
+    handles = []
+    for s in [s for s in ("bw", "cw") if any(r["source"] == s for r in have)]:
+        idx = [i for i, r in enumerate(have) if r["source"] == s]
+        xs_s, ys_s = x[idx], y[idx]
+        ax.scatter(xs_s, ys_s, c=_COLOR[s], marker=_MARK[s], s=46, alpha=0.85,
+                   edgecolors="black", linewidths=0.4, zorder=3)
+        f = _linfit(xs_s, ys_s)
+        if f is not None:
+            a, b = f
+            xr = np.array([xs_s.min(), xs_s.max()])
+            ax.plot(xr, a * xr + b, color=_COLOR[s], lw=1.8, zorder=2)
+            lab = f"{_LABEL[s]}: r={pearson(xs_s, ys_s):.2f}, slope={a:.2f}"
+        else:
+            lab = _LABEL[s]
+        handles.append(Line2D([], [], color=_COLOR[s], marker=_MARK[s],
+                              markeredgecolor="black", label=lab))
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(alpha=0.25)
+    ax.legend(handles=handles, loc="upper left", framealpha=0.9, fontsize=9)
+    ax.set_title(f"{title}   (pooled r={pearson(x, y):.3f})")
+
+
 def plot_bonddim(recs: List[Dict], prefix: str) -> None:
+    """Main figure: the two matched pairings -- the peak MPO bond dimension vs
+    cutwidth (what sets DMRG cost), and the mean bond dimension vs envelope."""
     plt = _plt()
     if plt is None:
         return
-    from matplotlib.lines import Line2D
-    have = [r for r in recs if "daux_max" in r]
-    bw = np.array([r["bandwidth"] for r in have])
-    cut = np.array([r["cutwidth"] for r in have])
-    dam = np.array([r["daux_max"] for r in have])
-    srcs = [s for s in ("bw", "cw") if any(r["source"] == s for r in have)]
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5.4), sharey=True)
-    for ax, x, xlab in [(axs[0], bw, r"bandwidth $B$"),
-                        (axs[1], cut, r"cutwidth $C$")]:
-        handles = []
-        for s in srcs:                          # fit each population separately
-            idx = [i for i, r in enumerate(have) if r["source"] == s]
-            xs_s, ys_s = x[idx], dam[idx]
-            ax.scatter(xs_s, ys_s, c=_COLOR[s], marker=_MARK[s], s=46,
-                       alpha=0.85, edgecolors="black", linewidths=0.4, zorder=3)
-            f = _linfit(xs_s, ys_s)
-            if f is not None:
-                a, b = f
-                xr = np.array([xs_s.min(), xs_s.max()])
-                ax.plot(xr, a * xr + b, color=_COLOR[s], lw=1.8, zorder=2)
-                lab = (f"{_LABEL[s]}: r={pearson(xs_s, ys_s):.2f}, "
-                       f"slope={a:.2f}")
-            else:
-                lab = _LABEL[s]
-            handles.append(Line2D([], [], color=_COLOR[s], marker=_MARK[s],
-                                  markeredgecolor="black", label=lab))
-        ax.set_xlabel(xlab)
-        ax.grid(alpha=0.25)
-        ax.legend(handles=handles, loc="upper left", framealpha=0.9, fontsize=9)
-        ax.set_title(f"$d_{{aux}}^{{max}}$ vs {xlab.split()[0]}   "
-                     f"(pooled r={pearson(x, dam):.3f})")
-    axs[0].set_ylabel(r"MPO bond dimension  $d_{aux}^{max}$")
-    fig.suptitle(f"Which objective predicts the MPO bond dimension? "
+    have = [r for r in recs if "daux_max" in r and "daux_avg" in r]
+    fig, axs = plt.subplots(1, 2, figsize=(12.4, 5.6))
+    _panel(axs[0], have, "cutwidth", "daux_max", r"cutwidth $C$",
+           r"peak MPO bond dim  $d_{aux}^{max}$",
+           r"peak $d_{aux}^{max}$ vs cutwidth")
+    _panel(axs[1], have, "envelope", "daux_avg", r"envelope $R$",
+           r"mean MPO bond dim  $d_{aux}^{avg}$",
+           r"mean $d_{aux}^{avg}$ vs envelope")
+    fig.suptitle(f"MPO bond dimension vs geometry "
                  f"({len(have)} DMRG-measured layouts, fitted per family)",
                  fontsize=13)
     fig.tight_layout()
     _save(fig, prefix, "bonddim")
+
+
+def plot_bonddim_bandwidth(recs: List[Dict], prefix: str) -> None:
+    """Second figure: the peak MPO bond dimension against bandwidth -- the
+    proxy-of-a-proxy, weaker and family-dependent than the cutwidth pairing."""
+    plt = _plt()
+    if plt is None:
+        return
+    have = [r for r in recs if "daux_max" in r]
+    fig, ax = plt.subplots(figsize=(6.8, 5.6))
+    _panel(ax, have, "bandwidth", "daux_max", r"bandwidth $B$",
+           r"peak MPO bond dim  $d_{aux}^{max}$",
+           r"peak $d_{aux}^{max}$ vs bandwidth")
+    fig.tight_layout()
+    _save(fig, prefix, "bandwidth")
 
 
 def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
@@ -278,6 +313,7 @@ def main() -> None:
     rows = divergence(recs)
     if not args.no_plot:
         plot_bonddim(recs, args.out_prefix)
+        plot_bonddim_bandwidth(recs, args.out_prefix)
         plot_divergence(recs, rows, args.out_prefix)
 
 
