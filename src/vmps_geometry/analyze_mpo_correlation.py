@@ -263,30 +263,29 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     for r in rows:
-        div = r["cut_ratio"] > 1.05
-        col = "crimson" if div else "0.6"
+        diff = r["cut_bwopt"] - r["cut_cwopt"]      # cutwidth the bw-opt loses
+        if diff <= 0:                               # objectives agree
+            col, lw, al = "0.6", 1.0, 0.5
+        elif diff <= 2:                             # marginal: <= 2 apart
+            col, lw, al = "gold", 2.0, 0.95
+        else:                                       # real divergence
+            col, lw, al = "crimson", 1.8, 0.9
         ax.annotate("", xy=(r["bw_cwopt"], r["cut_cwopt"]),
                     xytext=(r["bw_bwopt"], r["cut_bwopt"]),
-                    arrowprops=dict(arrowstyle="->", color=col,
-                                    lw=1.8 if div else 1.0,
-                                    alpha=0.9 if div else 0.5))
+                    arrowprops=dict(arrowstyle="->", color=col, lw=lw, alpha=al))
         ax.scatter([r["bw_bwopt"]], [r["cut_bwopt"]], c="tab:blue", s=42,
                    edgecolors="black", linewidths=0.4, zorder=4)
         ax.scatter([r["bw_cwopt"]], [r["cut_cwopt"]], c="tab:orange",
                    marker="s", s=42, edgecolors="black", linewidths=0.4,
                    zorder=4)
-        if div:
-            ax.annotate(f"{r['cluster']} (×{r['cut_ratio']:.2f})",
-                        (r["bw_cwopt"], r["cut_cwopt"]), fontsize=8,
-                        color="crimson", xytext=(4, -2),
-                        textcoords="offset points")
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-opt"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-opt"),
-        Line2D([], [], color="crimson", lw=2, label="diverge (cutwidth drops >5%)"),
-        Line2D([], [], color="0.6", lw=1, label="agree (cutwidth ~unchanged)"),
+        Line2D([], [], color="crimson", lw=2, label="diverge (cutwidth drops >2)"),
+        Line2D([], [], color="gold", lw=2, label="marginal (cutwidth drops 1-2)"),
+        Line2D([], [], color="0.6", lw=1, label="agree (cutwidth unchanged)"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label="C = B"),
     ], loc="lower right", framealpha=0.95, fontsize=9)
     ax.set_xlabel(r"bandwidth $B$")
