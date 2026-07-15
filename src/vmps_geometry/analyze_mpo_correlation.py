@@ -121,12 +121,21 @@ def correlations(recs: List[Dict]) -> Dict:
     return out
 
 
-def divergence(recs: List[Dict]) -> List[Dict]:
-    """For clusters present in BOTH sources, quantify the objective divergence."""
+# Quasi-1D hyperkagome variants (thin Nx1x1 / 2x2x1 supercells) excluded from
+# the divergence figure by default -- they crowd the low corner and don't
+# diverge; override with --exclude (empty string keeps everything).
+DEFAULT_DIVERGENCE_EXCLUDE = ("hyperkagome48_4x1x1", "hyperkagome72_6x1x1",
+                              "hyperkagome48_2x2x1", "hyperkagome60_5x1x1")
+
+
+def divergence(recs: List[Dict], exclude=()) -> List[Dict]:
+    """For clusters present in BOTH sources (minus `exclude`), quantify the
+    bandwidth<->cutwidth objective divergence."""
+    exclude = set(exclude)
     bwm = {r["cluster"]: r for r in recs if r["source"] == "bw"}
     cwm = {r["cluster"]: r for r in recs if r["source"] == "cw"}
     rows: List[Dict] = []
-    for c in sorted(set(bwm) & set(cwm)):
+    for c in sorted(set(bwm) & set(cwm) - exclude):
         b, w = bwm[c], cwm[c]
         rows.append({
             "cluster": c,
@@ -135,7 +144,11 @@ def divergence(recs: List[Dict]) -> List[Dict]:
             "cut_ratio": b["cutwidth"] / w["cutwidth"] if w["cutwidth"] else 1.0,
         })
     rows.sort(key=lambda r: r["cut_ratio"], reverse=True)
-    print(f"\nbandwidth<->cutwidth divergence over {len(rows)} shared cluster(s):")
+    skipped = sorted((set(bwm) & set(cwm)) & exclude)
+    if skipped:
+        print(f"\n(excluded {len(skipped)} cluster(s) from the divergence "
+              f"figure: {', '.join(skipped)})")
+    print(f"bandwidth<->cutwidth divergence over {len(rows)} shared cluster(s):")
     print(f"  {'cluster':26s}{'cut(bw-opt)':>12s}{'cut(cw-opt)':>12s}"
           f"{'ratio':>7s}{'bw(bw-opt)':>11s}{'bw(cw-opt)':>11s}")
     for r in rows:
@@ -296,6 +309,10 @@ def main() -> None:
     ap.add_argument("--out-prefix", default=None,
                     help="output figure path prefix (default: plots/mpo)")
     ap.add_argument("--no-plot", action="store_true", help="skip the figures")
+    ap.add_argument("--exclude", default=",".join(DEFAULT_DIVERGENCE_EXCLUDE),
+                    help="comma-separated clusters to drop from the divergence "
+                         "figure (default: the quasi-1D hyperkagome variants; "
+                         "pass an empty string to keep all)")
     args = ap.parse_args()
     if args.out_prefix is None:
         args.out_prefix = os.path.join(_plots_dir(), "mpo")
@@ -310,7 +327,8 @@ def main() -> None:
         ap.error("no permutation entries parsed from the given files")
 
     correlations(recs)
-    rows = divergence(recs)
+    rows = divergence(recs, [c.strip() for c in args.exclude.split(",")
+                             if c.strip()])
     n_daux = sum(1 for r in recs if "daux_max" in r)
     if not args.no_plot:
         # up-front, on stdout, so a skip is never silent
