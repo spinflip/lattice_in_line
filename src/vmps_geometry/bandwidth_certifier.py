@@ -3041,13 +3041,42 @@ def cutwidth_of(lab, edges):
 
 
 def cutwidth_math_lb(n, edges):
-    """Cheap valid lower bound: ceil(maxdeg/2). The max-degree vertex splits its
-    edges left/right of its position, so the busier side carries >= ceil(deg/2).
-    Weak -- this is why only small clusters certify."""
+    """Cheap valid lower bound on the cutwidth: the best of three.
+
+    - ceil(maxdeg/2): the max-degree vertex splits its edges left/right of its
+      own position, so the busier side carries >= ceil(deg/2).
+    - degree-sum: the cut after the first k positions is crossed by at least
+      sum(deg of those k vertices) - 2*(edges among them), which is at least
+      (sum of the k smallest degrees) - 2*min(k(k-1)/2, |E|); maximize over k.
+    - spectral (Fiedler): for any vertex subset S, e(S, ~S) >= lambda2*|S||~S|/n,
+      so every ordering's middle cut gives cutwidth >= lambda2*floor(n/2)*
+      ceil(n/2)/n. One Laplacian eigenvalue; on dense graphs this is often far
+      stronger than what the CP-SAT UNSAT ladder can prove in hours."""
     if not edges:
         return 0
     adj = adjacency(n, edges)
-    return max(1, ceil_div(max(len(a) for a in adj), 2))
+    degs = sorted(len(a) for a in adj)
+    lb = max(1, ceil_div(degs[-1], 2))
+    m = len(edges)
+    acc = 0
+    for k in range(1, n + 1):
+        acc += degs[k - 1]
+        lb = max(lb, acc - 2 * min(k * (k - 1) // 2, m))
+    try:
+        import numpy as np
+        L = np.zeros((n, n))
+        for u, v in edges:
+            L[u, u] += 1.0
+            L[v, v] += 1.0
+            L[u, v] -= 1.0
+            L[v, u] -= 1.0
+        lam2 = float(np.linalg.eigvalsh(L)[1])
+        if lam2 > 1e-9:
+            # small slack guards the ceil against float noise in lambda2
+            lb = max(lb, math.ceil(lam2 * (n // 2) * ((n + 1) // 2) / n - 1e-6))
+    except ImportError:                       # numpy absent: skip spectral term
+        pass
+    return lb
 
 
 class CutwidthState(State):

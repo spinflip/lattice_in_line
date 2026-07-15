@@ -298,15 +298,34 @@ def test_cutwidth_of_path_and_cycle():
 
 
 def test_cutwidth_math_lb_is_valid_lower_bound():
+    import itertools
+    import random
     import vmps_geometry.bandwidth_heuristics_benchmark as bhb
     from vmps_geometry.cluster_edges import CLUSTER_EDGES
-    for g in ("C12", "C20"):
+    # certified optima from the cutwidth campaigns: LB must never exceed them
+    for g, copt in (("C12", 5), ("C20", 7), ("icosidodeca", 12)):
         _nodes, edges = bhb.normalize_edges(CLUSTER_EDGES[g])
         n = max(max(u, v) for u, v in edges) + 1
         lb = bc.cutwidth_math_lb(n, edges)
-        assert lb == max(1, -(-max(len(a) for a in bc.adjacency(n, edges)) // 2))
-        # a valid LB never exceeds the identity ordering's cutwidth
-        assert lb <= bc.cutwidth_of(list(range(1, n + 1)), edges)
+        # at least as strong as the old ceil(maxdeg/2) bound, never above c*
+        assert lb >= max(1, -(-max(len(a) for a in bc.adjacency(n, edges)) // 2))
+        assert lb <= copt
+    # analytic tight cases: K6 (degree+spectral give 9 = c*), star (maxdeg/2),
+    # path and cycle (spectral must not overshoot the trivial optima)
+    K6 = [(i, j) for i in range(6) for j in range(i + 1, 6)]
+    assert bc.cutwidth_math_lb(6, K6) == 9
+    assert bc.cutwidth_math_lb(8, [(0, i) for i in range(1, 8)]) == 4
+    assert bc.cutwidth_math_lb(8, [(i, i + 1) for i in range(7)]) == 1
+    assert bc.cutwidth_math_lb(8, [(i, (i + 1) % 8) for i in range(8)]) == 2
+    # brute-force validity on random small graphs
+    rng = random.Random(7)
+    for _ in range(15):
+        n = rng.randint(4, 7)
+        pool = [(i, j) for i in range(n) for j in range(i + 1, n)]
+        E = rng.sample(pool, rng.randint(n - 1, len(pool)))
+        true = min(bc.cutwidth_of(list(p), E)
+                   for p in itertools.permutations(range(1, n + 1)))
+        assert bc.cutwidth_math_lb(n, E) <= true
 
 
 def test_cutwidth_state_objective_and_range(tmp_path):
