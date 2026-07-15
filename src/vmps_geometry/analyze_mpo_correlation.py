@@ -264,7 +264,9 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
         diff = r["cut_bwopt"] - r["cut_cwopt"]      # cutwidth the bw-opt loses
         if diff > 2:                                # real divergence
             col, lw, al = "red", 2.0, 0.95
-        elif diff >= 1:                            # marginal: 1-2 apart
+        elif diff == 2:                             # borderline
+            col, lw, al = "darkorange", 1.8, 0.9
+        elif diff == 1:                             # marginal
             col, lw, al = "gold", 1.6, 0.8
         else:                                       # objectives agree
             col, lw, al = "0.6", 1.0, 0.5
@@ -278,14 +280,16 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
                    zorder=4)
         if diff > 2:                                # name only the divergers
             ax.annotate(r["cluster"], (r["bw_cwopt"], r["cut_cwopt"]),
-                        color="red", xytext=(4, -2), textcoords="offset points")
+                        color="red", xytext=(4, -2), textcoords="offset points",
+                        fontsize=8)
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-opt"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-opt"),
         Line2D([], [], color="red", lw=2, label="diverge (cutwidth drops > 2)"),
-        Line2D([], [], color="gold", lw=2, label="marginal (cutwidth drops 1-2)"),
+        Line2D([], [], color="darkorange", lw=2, label="cutwidth drops 2"),
+        Line2D([], [], color="gold", lw=2, label="cutwidth drops 1"),
         Line2D([], [], color="0.6", lw=1, label="agree (cutwidth unchanged)"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label="C = B"),
     ], loc="lower right", framealpha=0.95)
