@@ -152,7 +152,7 @@ def divergence(recs: List[Dict], exclude=()) -> List[Dict]:
     print(f"  {'cluster':26s}{'cut(bw-opt)':>12s}{'cut(cw-opt)':>12s}"
           f"{'ratio':>7s}{'bw(bw-opt)':>11s}{'bw(cw-opt)':>11s}")
     for r in rows:
-        flag = "  <- diverges" if round(r["cut_ratio"], 2) > 1.06 else ""
+        flag = "  <- diverges" if r["cut_bwopt"] - r["cut_cwopt"] > 2 else ""
         print(f"  {r['cluster']:26s}{r['cut_bwopt']:12d}{r['cut_cwopt']:12d}"
               f"{r['cut_ratio']:7.2f}{r['bw_bwopt']:11.0f}{r['bw_cwopt']:11.0f}"
               f"{flag}")
@@ -261,11 +261,13 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     for r in rows:
-        diverges = round(r["cut_ratio"], 2) > 1.06  # displayed factor > 1.06
-        if diverges:
+        diff = r["cut_bwopt"] - r["cut_cwopt"]      # cutwidth the bw-opt loses
+        if diff > 2:                                # real divergence
             col, lw, al = "red", 2.0, 0.95
-        else:                                       # <= 1.06: marginal / agree
+        elif diff >= 1:                            # marginal: 1-2 apart
             col, lw, al = "gold", 1.6, 0.8
+        else:                                       # objectives agree
+            col, lw, al = "0.6", 1.0, 0.5
         ax.annotate("", xy=(r["bw_cwopt"], r["cut_cwopt"]),
                     xytext=(r["bw_bwopt"], r["cut_bwopt"]),
                     arrowprops=dict(arrowstyle="->", color=col, lw=lw, alpha=al))
@@ -274,21 +276,21 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
         ax.scatter([r["bw_cwopt"]], [r["cut_cwopt"]], c="tab:orange",
                    marker="s", s=42, edgecolors="black", linewidths=0.4,
                    zorder=4)
-        if diverges:                                # name only the divergers
-            ax.annotate(f"{r['cluster']} (×{r['cut_ratio']:.2f})",
-                        (r["bw_cwopt"], r["cut_cwopt"]), color="red",
-                        xytext=(4, -2), textcoords="offset points")
+        if diff > 2:                                # name only the divergers
+            ax.annotate(r["cluster"], (r["bw_cwopt"], r["cut_cwopt"]),
+                        color="red", xytext=(4, -2), textcoords="offset points")
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-opt"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-opt"),
-        Line2D([], [], color="red", lw=2, label="diverge (factor > 1.06)"),
-        Line2D([], [], color="gold", lw=2, label="marginal (factor $\\leq$ 1.06)"),
+        Line2D([], [], color="red", lw=2, label="diverge (cutwidth drops > 2)"),
+        Line2D([], [], color="gold", lw=2, label="marginal (cutwidth drops 1-2)"),
+        Line2D([], [], color="0.6", lw=1, label="agree (cutwidth unchanged)"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label="C = B"),
     ], loc="lower right", framealpha=0.95)
     ax.set_xlabel(r"bandwidth $B$")
-    ax.set_ylabel(r"cutwidth $C$  (MPO bond-dim proxy)")
+    ax.set_ylabel(r"cutwidth $C$")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "divergence")
