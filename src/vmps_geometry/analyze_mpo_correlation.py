@@ -345,10 +345,12 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
     hi = float(max(rb.max(), rc.max())) * 1.15
 
     # Highlight (sky blue) the biggest range reductions at unchanged cutwidth.
+    # value = (dx, dy, ha, display label)
     highlight = {
-        "hyperkagome324_3x3x3": (-6, 6, "right"),
-        "hyperkagome96_2x2x2": (7, 1, "left"),
-        "pyrochlore64": (-6, -13, "right"),
+        "hyperkagome324_3x3x3": (-6, 6, "right", "hyperkagome324"),
+        "hyperkagome96_2x2x2": (7, 1, "left", "hyperkagome96"),
+        "pyrochlore64": (-6, -13, "right", "pyrochlore64"),
+        "pyrochlore48a": (7, -4, "left", "pyrochlore48a"),
     }
     hl = np.array([c in highlight for c, _, _ in pairs])
 
@@ -365,8 +367,8 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
             ax.annotate(c, (x, y), color="crimson", fontsize=8,
                         xytext=(5, -2), textcoords="offset points")
         elif c in highlight:
-            dx, dy, ha = highlight[c]
-            ax.annotate(c, (x, y), color="black", fontsize=8, ha=ha,
+            dx, dy, ha, label = highlight[c]
+            ax.annotate(label, (x, y), color="black", fontsize=8, ha=ha,
                         xytext=(dx, dy), textcoords="offset points")
     ax.set_xscale("log")
     ax.set_yscale("log")
