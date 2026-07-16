@@ -361,7 +361,12 @@ def compute_bandwidth(edges: EdgeList, position: Dict[int, int]) -> int:
     return max(abs(position[u] - position[v]) for u, v in normalized_edges)
 
 
-def compute_envelope(edges: EdgeList, position: Dict[int, int]) -> float:
+def compute_avg_range(edges: EdgeList, position: Dict[int, int]) -> float:
+    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range.
+
+    Historically called "envelope" here -- not to be confused with the classic
+    sparse-matrix envelope/profile (sum of per-row bandwidths).
+    """
     _, normalized_edges = normalize_edges(edges)
 
     if not normalized_edges:
@@ -372,6 +377,10 @@ def compute_envelope(edges: EdgeList, position: Dict[int, int]) -> float:
         total += abs(position[u] - position[v])
 
     return total / len(normalized_edges)
+
+
+# Deprecated alias (pre-rename name).
+compute_envelope = compute_avg_range
 
 
 def bandwidth_lower_bound(edges: EdgeList) -> int:
@@ -1218,16 +1227,16 @@ def print_result(
     vertices, normalized_edges = normalize_edges(edges)
     original_position = {v: v for v in vertices}
     original_bandwidth = compute_bandwidth(normalized_edges, original_position)
-    original_envelope = compute_envelope(normalized_edges, original_position)
+    original_avg_range = compute_avg_range(normalized_edges, original_position)
     recomputed_bandwidth = compute_bandwidth(edges, result.position)
-    recomputed_envelope = compute_envelope(edges, result.position)
+    recomputed_avg_range = compute_avg_range(edges, result.position)
     print(f"method: {result.method}")
     print(f"old vertex -> assigned position: {result.position}")
-    print(f"bandwidth: {recomputed_bandwidth} (envelope: {recomputed_envelope:.6g})")
+    print(f"bandwidth: {recomputed_bandwidth} (avg_range: {recomputed_avg_range:.6g})")
     print(
         "bandwidth change vs original ordering: "
         f"{recomputed_bandwidth - original_bandwidth:+d} "
-        f"(original: {original_bandwidth}, envelope: {original_envelope:.6g})"
+        f"(original: {original_bandwidth}, avg_range: {original_avg_range:.6g})"
     )
     print(f"energy: {result.energy:.6g}")
     print(f"valid permutation from solver: {result.feasible_permutation}")
@@ -1307,7 +1316,7 @@ def main() -> None:
         print(
             "original ordering bandwidth: "
             f"{compute_bandwidth(normalized_edges, original_position)} "
-            f"(envelope: {compute_envelope(normalized_edges, original_position):.6g})"
+            f"(avg_range: {compute_avg_range(normalized_edges, original_position):.6g})"
         )
         print(f"implementation: python")
         print(f"backend: {args.backend}")
@@ -1324,7 +1333,7 @@ def main() -> None:
 
             print(f"ordering, position -> vertex: {rcm_order}")
             print(f"position, vertex -> position: {rcm_pos}")
-            print(f"bandwidth: {rcm_bw} (envelope: {compute_envelope(normalized_edges, rcm_pos):.6g})")
+            print(f"bandwidth: {rcm_bw} (avg_range: {compute_avg_range(normalized_edges, rcm_pos):.6g})")
 
         except ImportError:
             print("scipy not installed; skipping RCM baseline")

@@ -236,8 +236,8 @@ def test_cm_rcm_reversal_invariance_and_profile():
     rcm = bhb.reverse_cuthill_mckee_ordering(edges)
     # reversal leaves bandwidth and avg_range unchanged...
     assert bhb.compute_bandwidth(edges, cm) == bhb.compute_bandwidth(edges, rcm)
-    assert abs(bhb.compute_envelope(edges, cm)
-               - bhb.compute_envelope(edges, rcm)) < 1e-9
+    assert abs(bhb.compute_avg_range(edges, cm)
+               - bhb.compute_avg_range(edges, rcm)) < 1e-9
     # ...but rcm never has a worse matrix profile (its whole purpose)
     assert bhb.compute_profile(edges, rcm) <= bhb.compute_profile(edges, cm)
 

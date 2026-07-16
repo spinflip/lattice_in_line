@@ -81,6 +81,11 @@ def gather(data_dir: str, mode: str) -> List[Dict]:
             rec["stats"] = {
                 "bandwidth": bandwidth_of(lab, edges),
                 "cutwidth": cutwidth_of(lab, edges),
+                # "envelope" is the FROZEN serialization key for the average
+                # interaction range R = mean edge length (MinLA cost / |E|) --
+                # NOT the sparse-matrix envelope/profile. Kept stable because
+                # the comment stats in permutations_*.py are parsed by
+                # analyze_mpo_correlation and by vmps_torch.
                 "envelope": total_range(lab, edges) / len(edges),
             }
         else:

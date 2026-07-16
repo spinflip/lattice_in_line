@@ -13,7 +13,7 @@ from typing import Iterable, List, Optional
 from .bandwidth_qubo_tsq import (
     CLUSTER_EDGES,
     compute_bandwidth,
-    compute_envelope,
+    compute_avg_range,
     normalize_edges,
     solve_bandwidth_qubo_tsq_fast,
 )
@@ -31,7 +31,7 @@ class SweepRun:
     seed: int
     rcm_start: bool
     bandwidth: int
-    envelope: float
+    avg_range: float
     energy: float
     feasible_permutation: bool
     elapsed_s: float
@@ -55,7 +55,7 @@ def result_key(run: SweepRun) -> tuple[bool, int, float, float]:
     return (
         not run.feasible_permutation,
         run.bandwidth,
-        run.envelope,
+        run.avg_range,
         run.energy,
     )
 
@@ -94,9 +94,13 @@ def parse_bandwidth_line(text: str) -> tuple[int, float]:
     if not text.startswith(prefix):
         raise ValueError(f"unexpected bandwidth line: {text!r}")
     body = text[len(prefix):]
-    bandwidth_text, envelope_part = body.split(" (envelope: ", maxsplit=1)
-    envelope_text = envelope_part[:-1]
-    return int(bandwidth_text), float(envelope_text)
+    # Current solver output says "avg_range:"; accept the pre-rename
+    # "envelope:" form too so old logs stay parseable.
+    for marker in (" (avg_range: ", " (envelope: "):
+        if marker in body:
+            bandwidth_text, avg_range_part = body.split(marker, maxsplit=1)
+            return int(bandwidth_text), float(avg_range_part[:-1])
+    raise ValueError(f"unexpected bandwidth line: {text!r}")
 
 
 def run_python_sweep(
@@ -151,9 +155,9 @@ def run_python_sweep(
         )
         elapsed_s = time.perf_counter() - t0
         bandwidth = compute_bandwidth(normalized_edges, result.position)
-        envelope = compute_envelope(normalized_edges, result.position)
+        avg_range = compute_avg_range(normalized_edges, result.position)
         print(
-            f"  -> bandwidth={bandwidth}, envelope={envelope:.6g}, "
+            f"  -> bandwidth={bandwidth}, avg_range={avg_range:.6g}, "
             f"energy={result.energy:.6g}, feasible={result.feasible_permutation}, "
             f"elapsed_s={elapsed_s:.3f}"
         )
@@ -170,7 +174,7 @@ def run_python_sweep(
                 seed=seed,
                 rcm_start=rcm_start,
                 bandwidth=bandwidth,
-                envelope=envelope,
+                avg_range=avg_range,
                 energy=float(result.energy),
                 feasible_permutation=result.feasible_permutation,
                 elapsed_s=elapsed_s,
@@ -235,9 +239,9 @@ def run_cpp_single(
         elif line.startswith("old vertex -> assigned position: "):
             parsed["position"] = ast.literal_eval(line.split(": ", maxsplit=1)[1])
         elif line.startswith("bandwidth: "):
-            bandwidth, envelope = parse_bandwidth_line(line)
+            bandwidth, avg_range = parse_bandwidth_line(line)
             parsed["bandwidth"] = bandwidth
-            parsed["envelope"] = envelope
+            parsed["avg_range"] = avg_range
         elif line.startswith("energy: "):
             parsed["energy"] = float(line.split(": ", maxsplit=1)[1])
         elif line.startswith("valid permutation from solver: "):
@@ -264,7 +268,7 @@ def run_cpp_single(
         seed=seed,
         rcm_start=rcm_start,
         bandwidth=int(parsed["bandwidth"]),
-        envelope=float(parsed["envelope"]),
+        avg_range=float(parsed["avg_range"]),
         energy=float(parsed["energy"]),
         feasible_permutation=bool(parsed["feasible_permutation"]),
         elapsed_s=float(parsed["elapsed_s"]),
@@ -327,7 +331,7 @@ def run_cpp_sweep(
             exponential_max_distance=exponential_max_distance,
         )
         print(
-            f"  -> bandwidth={run.bandwidth}, envelope={run.envelope:.6g}, "
+            f"  -> bandwidth={run.bandwidth}, avg_range={run.avg_range:.6g}, "
             f"energy={run.energy:.6g}, feasible={run.feasible_permutation}, "
             f"elapsed_s={run.elapsed_s:.3f}"
         )
@@ -450,7 +454,7 @@ def main() -> None:
         "best: "
         f"implementation={best.implementation}, "
         f"bandwidth={best.bandwidth}, "
-        f"envelope={best.envelope:.6g}, "
+        f"avg_range={best.avg_range:.6g}, "
         f"energy={best.energy:.6g}, "
         f"feasible={best.feasible_permutation}, "
         f"random_starts={best.random_starts}, "

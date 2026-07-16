@@ -18,7 +18,8 @@ permutations_sat_cw.py (cutwidth-optimized layouts), then:
 Three figures are written (PNG at 300 dpi + vector PDF) under the repo's plots/
 folder by default:
   plots/mpo_bonddim.png     the two matched pairings: peak d_aux^max vs cutwidth
-                            (the DMRG cost driver) | mean d_aux^avg vs envelope
+                            (the DMRG cost driver) | mean d_aux^avg vs the
+                            average interaction range R
   plots/mpo_bandwidth.png   peak d_aux^max vs bandwidth (the proxy-of-a-proxy)
   plots/mpo_divergence.png  arrows from the bandwidth-opt to the cutwidth-opt
                             layout of each shared cluster in (bandwidth, cutwidth)
@@ -47,6 +48,8 @@ _MARK = {"bw": "o", "cw": "s"}
 _COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
 _LABEL = {"bw": "bandwidth-opt", "cw": "cutwidth-opt"}
 
+# "envelope" is the frozen serialization key for the average interaction range
+# R = mean edge length (MinLA cost / |E|) -- not the sparse-matrix envelope.
 _RE_GEO = re.compile(
     r"#\s*bandwidth=([0-9.]+),\s*envelope=([0-9.]+),\s*cutwidth=([0-9]+)")
 _RE_MPO = re.compile(
@@ -114,7 +117,7 @@ def correlations(recs: List[Dict]) -> Dict:
         daa = np.array([r["daux_avg"] for r in have_avg], dtype=float)
         out["env_r"] = pearson(env, daa)
         print(f"mean MPO bond dim d_aux^avg over {len(have_avg)} layouts")
-        print(f"  vs envelope  : Pearson {out['env_r']:.3f}   "
+        print(f"  vs avg range : Pearson {out['env_r']:.3f}   "
               f"Spearman {spearman(env, daa):.3f}  "
               f"(near-identity: avg cut-load = R*|E|/(n-1))")
     print("=" * 68)
@@ -211,7 +214,8 @@ def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
 
 def plot_bonddim(recs: List[Dict], prefix: str) -> None:
     """Main figure: the two matched pairings -- the peak MPO bond dimension vs
-    cutwidth (what sets DMRG cost), and the mean bond dimension vs envelope."""
+    cutwidth (what sets DMRG cost), and the mean bond dimension vs the average
+    interaction range R."""
     plt = _plt()
     if plt is None:
         return

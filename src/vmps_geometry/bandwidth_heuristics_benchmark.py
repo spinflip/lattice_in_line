@@ -5,8 +5,8 @@ HEURISTICS across every graph in cluster_edges.py.
 
 Metrics reported per (graph, algorithm):
   bandwidth  max_e |pos_u - pos_v|            the certifier's objective
-  avg_range  mean_e |pos_u - pos_v|           "envelope" = average interaction
-                                              range (the metric you asked for)
+  avg_range  mean_e |pos_u - pos_v|           average interaction range R (was
+                                              called "envelope" in older output)
   profile    sum_v ( pos_v - min_{u in N(v) u {v}} pos_u )
                                               the classic sparse-matrix
                                               envelope/profile (row leftward reach)
@@ -51,7 +51,7 @@ from .cluster_edges import CLUSTER_EDGES
 from .qubo.bandwidth_classical_compare import (
     build_adjacency,
     compute_bandwidth,
-    compute_envelope,          # == our avg_range
+    compute_avg_range,
     connected_components,
     cuthill_mckee_ordering,
     gps_ordering,
@@ -250,7 +250,7 @@ def run_one(edges: EdgeList, alg: str) -> Dict:
     return {
         "algorithm": alg,
         "bandwidth": compute_bandwidth(edges, ordering),
-        "avg_range": compute_envelope(edges, ordering),
+        "avg_range": compute_avg_range(edges, ordering),
         "profile": compute_profile(edges, ordering),
         "cut_max": compute_cutwidth(edges, ordering),
         "seconds": dt,

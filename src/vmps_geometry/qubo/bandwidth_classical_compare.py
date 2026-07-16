@@ -88,7 +88,12 @@ def compute_bandwidth(edges: EdgeList, ordering: List[int]) -> int:
     return max(abs(position[u] - position[v]) for u, v in normalized)
 
 
-def compute_envelope(edges: EdgeList, ordering: List[int]) -> float:
+def compute_avg_range(edges: EdgeList, ordering: List[int]) -> float:
+    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range.
+
+    Historically called "envelope" here -- not to be confused with the classic
+    sparse-matrix envelope/profile (sum of per-row bandwidths).
+    """
     _, normalized = normalize_edges(edges)
     position = {v: i for i, v in enumerate(ordering)}
 
@@ -100,6 +105,10 @@ def compute_envelope(edges: EdgeList, ordering: List[int]) -> float:
         total += abs(position[u] - position[v])
 
     return total / len(normalized)
+
+
+# Deprecated alias (pre-rename name).
+compute_envelope = compute_avg_range
 
 
 def ordering_to_position(ordering: List[int]) -> Dict[int, int]:
@@ -799,7 +808,7 @@ def print_result(result: BandwidthAlgorithmResult, edges: EdgeList) -> None:
     print(f"algorithm: {result.name}")
     print(f"ordering, position -> vertex: {result.ordering}")
     print(f"position, vertex -> position: {result.position}")
-    print(f"bandwidth: {result.bandwidth} (envelope: {compute_envelope(edges, result.ordering):.6g})")
+    print(f"bandwidth: {result.bandwidth} (avg_range: {compute_avg_range(edges, result.ordering):.6g})")
     print(f"optimal: {result.optimal}")
     print(f"elapsed_s: {result.elapsed_s:.6f}")
     print(f"nodes_searched: {result.nodes_searched}")
@@ -817,7 +826,7 @@ def print_summary_table(results: List[BandwidthAlgorithmResult], edges: EdgeList
     print("-" * 100)
 
     for r in sorted(results, key=lambda x: (x.bandwidth, x.elapsed_s, x.name)):
-        env = compute_envelope(edges, r.ordering)
+        env = compute_avg_range(edges, r.ordering)
         print(
             f"{r.name:36s} "
             f"{r.bandwidth:5d} "
@@ -867,13 +876,13 @@ def main() -> None:
     print(
         "original ordering bandwidth: "
         f"{compute_bandwidth(normalized_edges, original_order)} "
-        f"(envelope: {compute_envelope(normalized_edges, original_order):.6g})"
+        f"(avg_range: {compute_avg_range(normalized_edges, original_order):.6g})"
     )
     best_heur = best_heuristic_ordering(normalized_edges)
     print(
         "best heuristic upper bound: "
         f"{compute_bandwidth(normalized_edges, best_heur)} "
-        f"(envelope: {compute_envelope(normalized_edges, best_heur):.6g})"
+        f"(avg_range: {compute_avg_range(normalized_edges, best_heur):.6g})"
     )
 
     if args.algorithm == "all":

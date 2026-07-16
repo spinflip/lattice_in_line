@@ -3984,7 +3984,7 @@ def cmd_cw_verify(args):
 
 def cmd_cw_polish(args):
     """Among layouts with cutwidth <= c* (the current UB, or --target), find one
-    minimizing the total interaction range (envelope) via CP-SAT, holding the
+    minimizing the total interaction range (avg range x |E|) via CP-SAT, holding the
     bond dimension fixed. The refined layout is recorded into the state; the
     range tie-break in record_labeling keeps it only if it does not raise
     cutwidth and lowers the range."""
