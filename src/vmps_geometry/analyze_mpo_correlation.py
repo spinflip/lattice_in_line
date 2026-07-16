@@ -361,7 +361,6 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
     ax.set_aspect("equal")
     ax.set_xlabel(r"avg. interaction range $R$  (bandwidth-optimal)")
     ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
-    med = float(np.median(rc / rb))
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="cutwidth-opt shortens $R$"),
@@ -369,11 +368,6 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
                markeredgecolor="k", label="cutwidth-opt lengthens $R$"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label=r"$R_{cw} = R_{bw}$"),
     ], loc="upper left", framealpha=0.95)
-    ax.text(0.97, 0.04,
-            f"cutwidth-opt lower in {int(below.sum())}/{len(pairs)}\n"
-            f"median $R_{{cw}}/R_{{bw}} = {med:.2f}$",
-            transform=ax.transAxes, ha="right", va="bottom",
-            bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "avgrange")
