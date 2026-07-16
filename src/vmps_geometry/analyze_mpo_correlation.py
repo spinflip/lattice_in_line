@@ -125,11 +125,13 @@ def correlations(recs: List[Dict]) -> Dict:
     return out
 
 
-# Quasi-1D hyperkagome variants (thin Nx1x1 / 2x2x1 supercells) excluded from
-# the divergence figure by default -- they crowd the low corner and don't
-# diverge; override with --exclude (empty string keeps everything).
+# Excluded from the divergence figure by default: the quasi-1D hyperkagome
+# variants (thin Nx1x1 / 2x2x1 supercells) crowd the low corner and don't
+# diverge, and squareTorus100 is an outlier whose huge drop compresses the rest.
+# Override with --exclude (empty string keeps everything).
 DEFAULT_DIVERGENCE_EXCLUDE = ("hyperkagome48_4x1x1", "hyperkagome72_6x1x1",
-                              "hyperkagome48_2x2x1", "hyperkagome60_5x1x1")
+                              "hyperkagome48_2x2x1", "hyperkagome60_5x1x1",
+                              "squareTorus100_10x10")
 
 
 def divergence(recs: List[Dict], exclude=()) -> List[Dict]:
@@ -266,16 +268,22 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
+    # Label the two highest-cutwidth orange (drop == 2) arrows only.
+    orange_labeled = {
+        r["cluster"] for r in sorted(
+            (r for r in rows if r["cut_bwopt"] - r["cut_cwopt"] == 2),
+            key=lambda r: r["cut_bwopt"], reverse=True)[:2]
+    }
     for r in rows:
         diff = r["cut_bwopt"] - r["cut_cwopt"]      # cutwidth the bw-opt loses
         if diff > 2:                                # real divergence
-            col, lw, al = "red", 2.0, 0.95
+            col, lw, al, lab_col = "red", 2.0, 0.95, "red"
         elif diff == 2:                             # borderline
-            col, lw, al = "darkorange", 1.8, 0.9
+            col, lw, al, lab_col = "darkorange", 1.8, 0.9, "darkorange"
         elif diff == 1:                             # marginal
-            col, lw, al = "gold", 1.6, 0.8
+            col, lw, al, lab_col = "gold", 1.6, 0.8, "goldenrod"
         else:                                       # objectives agree
-            col, lw, al = "0.6", 1.0, 0.5
+            col, lw, al, lab_col = "0.6", 1.0, 0.5, None
         ax.annotate("", xy=(r["bw_cwopt"], r["cut_cwopt"]),
                     xytext=(r["bw_bwopt"], r["cut_bwopt"]),
                     arrowprops=dict(arrowstyle="->", color=col, lw=lw, alpha=al))
@@ -284,10 +292,12 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
         ax.scatter([r["bw_cwopt"]], [r["cut_cwopt"]], c="tab:orange",
                    marker="s", s=42, edgecolors="black", linewidths=0.4,
                    zorder=4)
-        if diff > 2:                                # name only the divergers
+        # Label the divergers (red), every marginal drop==1 (yellow), and the
+        # two highest-cutwidth drop==2 (orange) arrows.
+        if diff > 2 or diff == 1 or (diff == 2 and r["cluster"] in orange_labeled):
             ax.annotate(r["cluster"], (r["bw_cwopt"], r["cut_cwopt"]),
-                        color="red", xytext=(4, -2), textcoords="offset points",
-                        fontsize=8)
+                        color=lab_col, xytext=(4, -2),
+                        textcoords="offset points", fontsize=8)
     marker_legend = ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-optimal"),
