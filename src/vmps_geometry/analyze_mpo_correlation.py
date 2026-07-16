@@ -320,6 +320,65 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     _save(fig, prefix, "divergence")
 
 
+def plot_avg_range(recs: List[Dict], prefix: str) -> None:
+    """Paired comparison of the average interaction range R of the same cluster
+    under its bandwidth-optimal vs its cutwidth-optimal layout. Points below the
+    R_cw = R_bw diagonal are clusters where optimizing cutwidth also shortens the
+    average bond -- the expected win, since the cutwidth cap frees non-local
+    trades the bandwidth cap forbids."""
+    plt = _plt()
+    if plt is None:
+        return
+    from matplotlib.lines import Line2D
+    bwm = {r["cluster"]: r for r in recs if r["source"] == "bw" and "avg_range" in r}
+    cwm = {r["cluster"]: r for r in recs if r["source"] == "cw" and "avg_range" in r}
+    pairs = [(c, bwm[c]["avg_range"], cwm[c]["avg_range"])
+             for c in sorted(set(bwm) & set(cwm))]
+    if not pairs:
+        print("[plot] no shared clusters with avg_range; skipping avg-range figure",
+              file=sys.stderr)
+        return
+    rb = np.array([p[1] for p in pairs])
+    rc = np.array([p[2] for p in pairs])
+    below = rc < rb                                  # cutwidth-opt shortens R
+    lo = float(min(rb.min(), rc.min())) * 0.85
+    hi = float(max(rb.max(), rc.max())) * 1.15
+
+    fig, ax = plt.subplots(figsize=(7.2, 6.6))
+    ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
+    ax.scatter(rb[below], rc[below], c="tab:blue", s=48, zorder=3,
+               edgecolors="black", linewidths=0.4)
+    ax.scatter(rb[~below], rc[~below], c="crimson", marker="D", s=48, zorder=3,
+               edgecolors="black", linewidths=0.4)
+    for c, x, y in pairs:                            # name the rare exceptions
+        if y >= x:
+            ax.annotate(c, (x, y), color="crimson", fontsize=8,
+                        xytext=(5, -2), textcoords="offset points")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
+    ax.set_aspect("equal")
+    ax.set_xlabel(r"avg. interaction range $R$  (bandwidth-optimal)")
+    ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
+    med = float(np.median(rc / rb))
+    ax.legend(handles=[
+        Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
+               markeredgecolor="k", label="cutwidth-opt shortens $R$"),
+        Line2D([], [], marker="D", color="w", markerfacecolor="crimson",
+               markeredgecolor="k", label="cutwidth-opt lengthens $R$"),
+        Line2D([], [], ls="--", color="k", alpha=0.4, label=r"$R_{cw} = R_{bw}$"),
+    ], loc="upper left", framealpha=0.95)
+    ax.text(0.97, 0.04,
+            f"cutwidth-opt lower in {int(below.sum())}/{len(pairs)}\n"
+            f"median $R_{{cw}}/R_{{bw}} = {med:.2f}$",
+            transform=ax.transAxes, ha="right", va="bottom",
+            bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    _save(fig, prefix, "avgrange")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -369,6 +428,7 @@ def main() -> None:
             plot_bonddim(recs, args.out_prefix)
             plot_bonddim_bandwidth(recs, args.out_prefix)
             plot_divergence(recs, rows, args.out_prefix)
+            plot_avg_range(recs, args.out_prefix)
 
 
 if __name__ == "__main__":
