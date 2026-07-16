@@ -4,7 +4,7 @@ analyze_mpo_correlation.py — does the DMRG MPO bond dimension track bandwidth 
 cutwidth, and when do the two objectives diverge?
 
 It reads the per-entry comment stats written in the permutation tables
-  # bandwidth=B, envelope=E, cutwidth=C
+  # bandwidth=B, avg_range=R, cutwidth=C
   # MPO dAux_avg=.., dAux_max=D[, dAux_sum=..]
 from permutations_sat_bw.py (bandwidth-optimized layouts) and
 permutations_sat_cw.py (cutwidth-optimized layouts), then:
@@ -48,10 +48,11 @@ _MARK = {"bw": "o", "cw": "s"}
 _COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
 _LABEL = {"bw": "bandwidth-opt", "cw": "cutwidth-opt"}
 
-# "envelope" is the frozen serialization key for the average interaction range
-# R = mean edge length (MinLA cost / |E|) -- not the sparse-matrix envelope.
+# avg_range = average interaction range R = mean edge length (MinLA cost /
+# |E|). Old files serialized it as "envelope="; accept both.
 _RE_GEO = re.compile(
-    r"#\s*bandwidth=([0-9.]+),\s*envelope=([0-9.]+),\s*cutwidth=([0-9]+)")
+    r"#\s*bandwidth=([0-9.]+),\s*(?:avg_range|envelope)=([0-9.]+),"
+    r"\s*cutwidth=([0-9]+)")
 _RE_MPO = re.compile(
     r"#\s*MPO\s+dAux_avg=([0-9.]+),\s*dAux_max=([0-9]+)"
     r"(?:,\s*dAux_sum=([0-9]+))?")
@@ -69,7 +70,7 @@ def parse_file(path: str, source: str) -> List[Dict]:
             m = _RE_GEO.match(s)
             if m:
                 cur.update(bandwidth=float(m.group(1)),
-                           envelope=float(m.group(2)),
+                           avg_range=float(m.group(2)),
                            cutwidth=int(m.group(3)))
                 continue
             m = _RE_MPO.match(s)
@@ -113,7 +114,7 @@ def correlations(recs: List[Dict]) -> Dict:
     print(f"  -> {winner} is the better predictor of the peak bond dimension")
     have_avg = [r for r in have if "daux_avg" in r]
     if have_avg:
-        env = np.array([r["envelope"] for r in have_avg], dtype=float)
+        env = np.array([r["avg_range"] for r in have_avg], dtype=float)
         daa = np.array([r["daux_avg"] for r in have_avg], dtype=float)
         out["env_r"] = pearson(env, daa)
         print(f"mean MPO bond dim d_aux^avg over {len(have_avg)} layouts")
@@ -224,7 +225,7 @@ def plot_bonddim(recs: List[Dict], prefix: str) -> None:
     _panel(axs[0], have, "cutwidth", "daux_max", r"cutwidth $C$",
            r"peak MPO bond dim  $\chi_{\mathrm{max}}$",
            "C", r"\chi_{\mathrm{max}}")
-    _panel(axs[1], have, "envelope", "daux_avg",
+    _panel(axs[1], have, "avg_range", "daux_avg",
            r"average interaction range $R$",
            r"mean MPO bond dim  $\chi_{\mathrm{avg}}$",
            "R", r"\chi_{\mathrm{avg}}")

@@ -8,7 +8,7 @@ It scans the per-cluster run directories a campaign writes:
   cutwidth (MODE=cutwidth):  <data>/cw_run_<cluster>/<cluster>__cw.json
   bandwidth (plain):         <data>/bw_run_<cluster>/<cluster>.json
 reads each state's best_labeling, converts it to a {site: position} map (0-based),
-and annotates every entry with the layout's bandwidth / envelope / cutwidth plus
+and annotates every entry with the layout's bandwidth / avg_range / cutwidth plus
 whether the objective is certified optimal or just a heuristic upper bound.
 
 Usage:
@@ -81,12 +81,11 @@ def gather(data_dir: str, mode: str) -> List[Dict]:
             rec["stats"] = {
                 "bandwidth": bandwidth_of(lab, edges),
                 "cutwidth": cutwidth_of(lab, edges),
-                # "envelope" is the FROZEN serialization key for the average
-                # interaction range R = mean edge length (MinLA cost / |E|) --
-                # NOT the sparse-matrix envelope/profile. Kept stable because
-                # the comment stats in permutations_*.py are parsed by
-                # analyze_mpo_correlation and by vmps_torch.
-                "envelope": total_range(lab, edges) / len(edges),
+                # avg_range = average interaction range R = mean edge length
+                # (MinLA cost / |E|). Serialized as "avg_range=" in the comment
+                # stats; parsers (analyze_mpo_correlation, vmps_torch) also
+                # accept the pre-rename "envelope=" key from old files.
+                "avg_range": total_range(lab, edges) / len(edges),
             }
         else:
             rec["stats"] = None
@@ -103,7 +102,7 @@ def render(records: List[Dict], mode: str, data_dir: str) -> str:
     lines = [
         f"# orderings optimized for the {obj}",
         f"# gathered by gather_permutations.py from {data_dir} (mode={mode})",
-        "# stats are geometry-only (bandwidth/envelope/cutwidth of the layout);",
+        "# stats are geometry-only (bandwidth/avg_range/cutwidth of the layout);",
         "# MPO bond-dimension stats come from DMRG and are not filled in here.",
         "CUSTOM_PERMUTATIONS = {",
     ]
@@ -113,7 +112,7 @@ def render(records: List[Dict], mode: str, data_dir: str) -> str:
         s = r["stats"]
         if s:
             lines.append(f"\t# bandwidth={s['bandwidth']}, "
-                         f"envelope={s['envelope']:.2f}, "
+                         f"avg_range={s['avg_range']:.2f}, "
                          f"cutwidth={s['cutwidth']}")
         else:
             lines.append(f"\t# ({r['cluster']} not in cluster_edges.py; "
