@@ -350,10 +350,20 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
                edgecolors="black", linewidths=0.4)
     ax.scatter(rb[~below], rc[~below], c="crimson", marker="D", s=48, zorder=3,
                edgecolors="black", linewidths=0.4)
-    for c, x, y in pairs:                            # name the rare exceptions
-        if y >= x:
+    # Highlight the biggest range reductions at unchanged cutwidth.
+    highlight = {
+        "hyperkagome324_3x3x3": (-6, 6, "right"),
+        "hyperkagome96_2x2x2": (7, 1, "left"),
+        "pyrochlore64": (-6, -13, "right"),
+    }
+    for c, x, y in pairs:
+        if y >= x:                                   # name the rare exceptions
             ax.annotate(c, (x, y), color="crimson", fontsize=8,
                         xytext=(5, -2), textcoords="offset points")
+        elif c in highlight:
+            dx, dy, ha = highlight[c]
+            ax.annotate(c, (x, y), color="black", fontsize=8, ha=ha,
+                        xytext=(dx, dy), textcoords="offset points")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(lo, hi)
