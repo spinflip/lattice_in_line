@@ -220,7 +220,8 @@ def plot_bonddim(recs: List[Dict], prefix: str) -> None:
     _panel(axs[0], have, "cutwidth", "daux_max", r"cutwidth $C$",
            r"peak MPO bond dim  $\chi_{\mathrm{max}}$",
            "C", r"\chi_{\mathrm{max}}")
-    _panel(axs[1], have, "envelope", "daux_avg", r"envelope $R$",
+    _panel(axs[1], have, "envelope", "daux_avg",
+           r"average interaction range $R$",
            r"mean MPO bond dim  $\chi_{\mathrm{avg}}$",
            "R", r"\chi_{\mathrm{avg}}")
     fig.tight_layout()
