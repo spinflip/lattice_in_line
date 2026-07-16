@@ -37,30 +37,51 @@ class MissingPermutationEntry(ValueError):
     """Raised when an optional permutation table has no entry for a graph."""
 
 
+# Old permutation-table filenames -> their stratified successors, so callers
+# using the pre-rename names keep resolving to the renamed files.
+_PERMUTATION_FILE_ALIASES = {
+    "permutations_sat.py": "permutations_sat_bw.py",
+    "permutations_sat_cutwidth.py": "permutations_sat_cw.py",
+    "permutations_qubo.py": "permutations_qubo_bw.py",
+}
+
+
 def resolve_geometry_path(path) -> Path:
     """Resolve plain paths plus legacy ``geometry/...`` paths into this package."""
     raw = Path(path).expanduser()
     if raw.is_file():
         return raw
+    base = Path(__file__).resolve().parent
+
+    def _match(candidate: Path) -> Path | None:
+        if candidate.is_file():
+            return candidate
+        if candidate.suffix == ".py":
+            aliased = candidate.with_name(candidate.name.replace("-", "_"))
+            if aliased.is_file():
+                return aliased
+            # The permutation tables were stratified/renamed (bandwidth vs
+            # cutwidth); accept the old names as aliases for their successors.
+            renamed = _PERMUTATION_FILE_ALIASES.get(candidate.name)
+            if renamed is not None and (candidate.with_name(renamed)).is_file():
+                return candidate.with_name(renamed)
+        return None
+
+    if len(raw.parts) == 1:
+        matched = _match(base / raw.name)
+        if matched is not None:
+            return matched
     parts = raw.parts
     if "vmps_geometry" in parts:
         idx = parts.index("vmps_geometry")
-        candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
-        if candidate.is_file():
-            return candidate
-        if candidate.suffix == ".py":
-            aliased = candidate.with_name(candidate.name.replace("-", "_"))
-            if aliased.is_file():
-                return aliased
+        matched = _match(base.joinpath(*parts[idx + 1:]))
+        if matched is not None:
+            return matched
     if "geometry" in parts:
         idx = parts.index("geometry")
-        candidate = Path(__file__).resolve().parent.joinpath(*parts[idx + 1:])
-        if candidate.is_file():
-            return candidate
-        if candidate.suffix == ".py":
-            aliased = candidate.with_name(candidate.name.replace("-", "_"))
-            if aliased.is_file():
-                return aliased
+        matched = _match(base.joinpath(*parts[idx + 1:]))
+        if matched is not None:
+            return matched
     return raw
 
 
@@ -183,8 +204,9 @@ def _layout_stats(edges: Sequence[Tuple[int, int]]) -> Tuple[int, float, int]:
         default=0,
     )
     bandwidth = max(spans, default=0)
-    envelope = (sum(spans) / len(spans)) if spans else 0.0
-    return bandwidth, envelope, cut_width
+    # Mean edge length = average interaction range R (formerly "envelope").
+    avg_range = (sum(spans) / len(spans)) if spans else 0.0
+    return bandwidth, avg_range, cut_width
 
 
 def cluster_ordering_permutation(name: str, *, ordering: str = "rcm") -> List[int]:
@@ -231,8 +253,8 @@ def _ordered_cluster_edges(
     if verbose:
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{name} ordering ({ordering_label}): {perm_str}")
-        bandwidth, envelope, cut_width = _layout_stats(relabeled)
-        print(f"{name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
+        bandwidth, avg_range, cut_width = _layout_stats(relabeled)
+        print(f"{name} bandwidth={bandwidth}, avg_range={avg_range:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
@@ -597,13 +619,13 @@ def _ordered_cluster_file_edges(
         cluster_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{cluster_path.name} ordering ({ordering_label}): {perm_str}")
-        bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
+        bandwidth, avg_range, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
         counts = {}
         for _, _, coupling in weighted_edges:
             counts[coupling] = counts.get(coupling, 0) + 1
         coupling_summary = ", ".join(f"J={coupling:g}: {count}" for coupling, count in sorted(counts.items()))
         print(f"{cluster_path.name}: L={L}, edges={len(weighted_edges)}, {coupling_summary}")
-        print(f"{cluster_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
+        print(f"{cluster_path.name} bandwidth={bandwidth}, avg_range={avg_range:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
@@ -835,7 +857,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
     unit_cell_path = resolve_geometry_path(path)
     perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
     print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
-    bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
+    bandwidth, avg_range, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
     counts = {}
     for _, _, hopping in weighted_edges:
         counts[hopping] = counts.get(hopping, 0) + 1
@@ -845,7 +867,7 @@ def unit_cell_file_hopping_matrix_and_sublattice(
         f"{unit_cell_path.name}: L={L}, boundary={_normalize_boundary(boundary)}, "
         f"edges={len(weighted_edges)}, {hopping_summary}"
     )
-    print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
+    print(f"{unit_cell_path.name} bandwidth={bandwidth}, avg_range={avg_range:.2f}, cut_width={cut_width}")
     print(f"{unit_cell_path.name} sublattice={pattern}")
     return out, ordered_sublattice
 
@@ -885,7 +907,7 @@ def _ordered_unit_cell_file_edges(
         unit_cell_path = resolve_geometry_path(path)
         perm_str = ", ".join(f"{i}\u2192{j}" for i, j in enumerate(perm))
         print(f"{unit_cell_path.name} ordering ({ordering_label}): {perm_str}")
-        bandwidth, envelope, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
+        bandwidth, avg_range, cut_width = _layout_stats([(i, j) for i, j, _ in relabeled])
         counts = {}
         for _, _, coupling in weighted_edges:
             counts[coupling] = counts.get(coupling, 0) + 1
@@ -894,7 +916,7 @@ def _ordered_unit_cell_file_edges(
             f"{unit_cell_path.name}: L={L}, boundary={_normalize_boundary(boundary)}, "
             f"edges={len(weighted_edges)}, {coupling_summary}"
         )
-        print(f"{unit_cell_path.name} bandwidth={bandwidth}, envelope={envelope:.2f}, cut_width={cut_width}")
+        print(f"{unit_cell_path.name} bandwidth={bandwidth}, avg_range={avg_range:.2f}, cut_width={cut_width}")
 
     return L, relabeled
 
