@@ -314,6 +314,7 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ], loc="lower right", framealpha=0.95)
     ax.set_xlabel(r"bandwidth $B$")
     ax.set_ylabel(r"cutwidth $C$")
+    ax.set_ylim(top=100)   # cap at 10^2 (highest cutwidth in the set is 76)
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "divergence")
