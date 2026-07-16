@@ -295,9 +295,11 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
         # Label the divergers (red), every marginal drop==1 (yellow), and the
         # two highest-cutwidth drop==2 (orange) arrows.
         if diff > 2 or diff == 1 or (diff == 2 and r["cluster"] in orange_labeled):
-            ax.annotate(r["cluster"], (r["bw_cwopt"], r["cut_cwopt"]),
+            # drop the _unitcell suffix (trillium108_3x3x3 -> trillium108)
+            ax.annotate(r["cluster"].split("_")[0],
+                        (r["bw_cwopt"], r["cut_cwopt"]),
                         color=lab_col, xytext=(4, -2),
-                        textcoords="offset points", fontsize=8)
+                        textcoords="offset points", fontsize=11)
     marker_legend = ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label="bandwidth-optimal"),
@@ -364,12 +366,13 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
                edgecolors="black", linewidths=0.4)
     for c, x, y in pairs:
         if y >= x:                                   # name the rare exceptions
-            ax.annotate(c, (x, y), color="crimson", fontsize=8,
-                        xytext=(5, -2), textcoords="offset points")
+            ax.annotate(f"{c} (×{y / x:.2f})", (x, y), color="crimson",
+                        fontsize=8, xytext=(5, -2), textcoords="offset points")
         elif c in highlight:
             dx, dy, ha, label = highlight[c]
-            ax.annotate(label, (x, y), color="black", fontsize=8, ha=ha,
-                        xytext=(dx, dy), textcoords="offset points")
+            ax.annotate(f"{label} (×{y / x:.2f})", (x, y), color="black",
+                        fontsize=8, ha=ha, xytext=(dx, dy),
+                        textcoords="offset points")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(lo, hi)
@@ -379,9 +382,9 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
     ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
     ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
-               markeredgecolor="k", label="cutwidth-opt shortens $R$"),
+               markeredgecolor="k", label=r"$C$-opt shortens $R$"),
         Line2D([], [], marker="D", color="w", markerfacecolor="crimson",
-               markeredgecolor="k", label="cutwidth-opt lengthens $R$"),
+               markeredgecolor="k", label=r"$C$-opt lengthens $R$"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label=r"$R_{cw} = R_{bw}$"),
     ], loc="upper left", framealpha=0.95)
     ax.grid(alpha=0.25)
