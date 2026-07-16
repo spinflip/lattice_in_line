@@ -13,8 +13,8 @@ draws a scatter plot with the least-squares fit.
 Ordering sources (--sources, default all three):
   heuristics   the bandwidth/envelope heuristics (identity, cm, rcm, gps, king,
                sloan, spectral) run live on each graph
-  sat          the SAT-certified orderings shipped in permutations_sat.py
-  qubo         the QUBO-optimized orderings shipped in permutations_qubo.py
+  sat          the SAT-certified orderings shipped in permutations_sat_bw.py
+  qubo         the QUBO-optimized orderings shipped in permutations_qubo_bw.py
 The sat/qubo solutions are the real optimized layouts (at or near the true
 optimum), so including them anchors the correlation where it physically matters --
 in --mode per-graph the best-of point uses them wherever a graph has one.
@@ -89,9 +89,9 @@ OPT_SOURCES = ("sat", "qubo")
 
 def _load_opt_source(name: str) -> Dict[str, Dict[int, int]]:
     if name == "sat":
-        from .permutations_sat import CUSTOM_PERMUTATIONS
+        from .permutations_sat_bw import CUSTOM_PERMUTATIONS
     elif name == "qubo":
-        from .permutations_qubo import CUSTOM_PERMUTATIONS
+        from .permutations_qubo_bw import CUSTOM_PERMUTATIONS
     else:
         raise ValueError(name)
     return CUSTOM_PERMUTATIONS

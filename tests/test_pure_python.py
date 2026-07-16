@@ -384,7 +384,7 @@ def test_correlation_collect_points_shapes():
 
 def test_correlation_includes_optimized_sources():
     import vmps_geometry.bandwidth_cutwidth_correlation as bcc
-    from vmps_geometry.permutations_sat import CUSTOM_PERMUTATIONS as SAT
+    from vmps_geometry.permutations_sat_bw import CUSTOM_PERMUTATIONS as SAT
     # C12 has a SAT-certified ordering -> a 'sat' category point must appear,
     # and adding sources can only lower (never raise) the per-graph best-of.
     assert "C12" in SAT
@@ -451,7 +451,7 @@ def test_gather_permutations_builds_map(tmp_path):
 
 def test_analyze_mpo_parse_and_correlate():
     import vmps_geometry.analyze_mpo_correlation as amc
-    p = amc._default_file("permutations_sat.py")            # tracked, stable
+    p = amc._default_file("permutations_sat_bw.py")         # tracked, stable
     recs = amc.parse_file(p, "bw")
     assert len(recs) > 20
     by = {r["cluster"]: r for r in recs}

@@ -6,8 +6,8 @@ cutwidth, and when do the two objectives diverge?
 It reads the per-entry comment stats written in the permutation tables
   # bandwidth=B, envelope=E, cutwidth=C
   # MPO dAux_avg=.., dAux_max=D[, dAux_sum=..]
-from permutations_sat.py (bandwidth-optimized layouts) and
-permutations_sat_cutwidth.py (cutwidth-optimized layouts), then:
+from permutations_sat_bw.py (bandwidth-optimized layouts) and
+permutations_sat_cw.py (cutwidth-optimized layouts), then:
 
   1. correlates the MPO bond dimension d_aux^max against bandwidth and against
      cutwidth (pooled over both files) -> which is the better predictor;
@@ -306,10 +306,10 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--bw-file", default=_default_file("permutations_sat.py"),
+    ap.add_argument("--bw-file", default=_default_file("permutations_sat_bw.py"),
                     help="bandwidth-optimized permutation table")
     ap.add_argument("--cw-file",
-                    default=_default_file("permutations_sat_cutwidth.py"),
+                    default=_default_file("permutations_sat_cw.py"),
                     help="cutwidth-optimized permutation table")
     ap.add_argument("--out-prefix", default=None,
                     help="output figure path prefix (default: plots/mpo)")
