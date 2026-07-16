@@ -40,10 +40,10 @@ CUSTOM_PERMUTATIONS = {
 	# certified optimal cutwidth = 7
 	"C30": {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16, 17: 17, 18: 18, 19: 19, 20: 20, 21: 21, 22: 22, 23: 23, 24: 24, 25: 25, 26: 26, 27: 27, 28: 28, 29: 29},
 
-	# bandwidth=17, avg_range=4.53, cutwidth=12
-	# MPO dAux stats pending (layout replaced by the range-polished export)
+	# bandwidth=19, avg_range=4.53, cutwidth=12
+	# MPO dAux stats pending (range-polished layout; needs a DMRG re-run)
 	# certified optimal cutwidth = 12
-	"icosidodeca": {0: 4, 1: 15, 2: 0, 3: 3, 4: 9, 5: 2, 6: 5, 7: 12, 8: 6, 9: 7, 10: 10, 11: 8, 12: 11, 13: 25, 14: 13, 15: 20, 16: 26, 17: 14, 18: 24, 19: 27, 20: 21, 21: 23, 22: 29, 23: 17, 24: 22, 25: 28, 26: 18, 27: 19, 28: 16, 29: 1},
+	"icosidodeca": {0: 13, 1: 0, 2: 11, 3: 3, 4: 1, 5: 10, 6: 4, 7: 2, 8: 6, 9: 5, 10: 7, 11: 12, 12: 8, 13: 9, 14: 14, 15: 15, 16: 16, 17: 20, 18: 21, 19: 18, 20: 22, 21: 23, 22: 24, 23: 26, 24: 29, 25: 19, 26: 27, 27: 28, 28: 17, 29: 25},
 
 	# bandwidth=23, avg_range=6.08, cutwidth=26
 	# MPO dAux_avg=7.3, dAux_max=10, dAux_sum=240
