@@ -44,7 +44,8 @@ CENV=(
   TIME_PER_K=$TIME_PER_K_D
   LADDER_TIME=$LADDER_TIME_D
   SAT_TIME=0
-  WORKERS=16 PROCS=160 JOBS_PER_SIDE=4
+  # 32 CPUs peak: SA phase 32 procs; bw ladder 2 sides x 1 job x 16 threads = 32
+  WORKERS=16 PROCS=32 JOBS_PER_SIDE=1
   SEED=1
 )
 # show the plan (phases + budgets) and confirm, then launch for real

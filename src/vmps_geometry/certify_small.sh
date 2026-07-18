@@ -43,7 +43,8 @@ fi
 CENV=(
   TIME_HEUR=$TIME_HEUR_D STALL=300 TIME_OPT=3600 TIME_PER_K=$TIME_PER_K_D
   LADDER_TIME=$LADDER_TIME_D
-  SAT_TIME=3600 WORKERS=16 PROCS=160 JOBS_PER_SIDE=2 SEED=1
+  # 8 CPUs peak: SA phase 8 procs; bw ladder 2 sides x 1 job x 4 threads = 8
+  SAT_TIME=3600 WORKERS=4 PROCS=8 JOBS_PER_SIDE=1 SEED=1
 )
 # show a representative plan (same budgets for every cluster) and confirm
 if ! env "${CENV[@]}" STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_${CLUSTERS[0]}" PLAN_ONLY=1 CONFIRM=1 \
