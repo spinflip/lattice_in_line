@@ -2,6 +2,7 @@
 import numpy as np
 
 import vmps_geometry.bandwidth_certifier as bc
+import vmps_geometry.cluster_graphs as cgraphs
 import vmps_geometry.cluster_generator as cg
 import vmps_geometry.fiedler_ordering as fo
 
@@ -16,6 +17,22 @@ def test_neighbor_shell_edges_square_shells():
     assert {(min(i, j), max(i, j)) for i, j in nn} == set(edges)  # shell 1 == NN
     assert abs(d1[0] - 1.0) < 1e-9
     assert abs(d2[0] - 2 ** 0.5) < 1e-9  # NNN = the diagonal (sqrt 2) shell
+
+
+def test_canonical_permutation_files_resolve_from_bare_names():
+    for filename in (
+        "permutations_sat_bw.py",
+        "permutations_sat_cw.py",
+        "permutations_qubo_bw.py",
+    ):
+        assert cgraphs.resolve_geometry_path(filename).is_file()
+
+
+def test_common_permutation_typo_aliases_resolve():
+    assert cgraphs.resolve_geometry_path("permutation_sat_bw.py").name == "permutations_sat_bw.py"
+    assert cgraphs.resolve_geometry_path("permutation_sat_cw.py").name == "permutations_sat_cw.py"
+    assert cgraphs.resolve_geometry_path("permutation_qubo_bw.py").name == "permutations_qubo_bw.py"
+    assert cgraphs.resolve_geometry_path("permuation_sat_cw.py").name == "permutations_sat_cw.py"
 
 
 def test_sa_lex_stays_feasible_and_does_not_worsen_j2():
