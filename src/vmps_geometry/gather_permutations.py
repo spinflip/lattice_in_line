@@ -2,7 +2,7 @@
 """
 gather_permutations.py — collect the layouts a certification campaign produced in
 a vmps_geometry_data folder into a CUSTOM_PERMUTATIONS map, in the same format as
-permutations_sat.py / permutations_sat_cutwidth.py.
+permutations_sat_bw.py / permutations_sat_cw.py.
 
 It scans the per-cluster run directories a campaign writes:
   cutwidth (MODE=cutwidth):  <data>/cw_run_<cluster>/<cluster>__cw.json
@@ -15,7 +15,7 @@ Usage:
   vmps-gather-permutations                       # cutwidth, ~/vmps_geometry_data -> stdout
   vmps-gather-permutations --mode bw --out permutations_bw_gathered.py
   vmps-gather-permutations --data-dir /path/to/vmps_geometry_data --mode cw \
-      --out src/vmps_geometry/permutations_sat_cutwidth.py
+      --out src/vmps_geometry/permutations_sat_cw.py
 
 Stats are computed from cluster_edges.py, so a run whose cluster is not in
 CLUSTER_EDGES is still emitted (permutation only, stats noted as unavailable).

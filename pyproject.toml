@@ -51,9 +51,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 vmps_geometry = [
-    "supercell/*.json",
-    "supercell/*.txt",
-    "supercell_heur/*.txt",
+    "permutations*.py",
     "unit_cell/*.py",
     "*.sh",
 ]
