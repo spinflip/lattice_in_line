@@ -1,5 +1,8 @@
 """Cluster-generator regression tests: representative lattices generate valid
 graphs, and the garnet NN-disconnected / NNN-connects invariant holds."""
+from argparse import Namespace
+from pathlib import Path
+
 import vmps_geometry.cluster_generator as cg
 
 # (lattice, Nx, Ny, Nz, expected n_sites) — all bulk (make_diagonal) lattices.
@@ -46,3 +49,44 @@ def test_triangular_nnn_is_sqrt3_shell_degree_6():
         degree[j] += 1
     assert min(degree) == max(degree) == 6
     assert abs(dists[0] - 3 ** 0.5) < 1e-9  # the sqrt(3) shell, not a z-diagonal
+
+
+def test_c60_schlegel_coordinates_are_planar():
+    edges = cg.CLUSTER_EDGES["C60"]
+    coords = cg.build_schlegel_coordinates(60, edges)
+    assert len(coords) == 60
+    assert all(z == 0.0 for _, _, z in coords)
+    assert sum(abs(x * x + y * y - 1.0) < 1.0e-12 for x, y, _ in coords) == 5
+    assert min(
+        cg.dist2(coords[i], coords[j]) ** 0.5
+        for i in range(60)
+        for j in range(i + 1, 60)
+    ) > 0.08
+
+    def orientation(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    for index, (i, j) in enumerate(edges):
+        for k, l in edges[index + 1:]:
+            if len({i, j, k, l}) < 4:
+                continue
+            turns = (
+                orientation(coords[i], coords[j], coords[k]),
+                orientation(coords[i], coords[j], coords[l]),
+                orientation(coords[k], coords[l], coords[i]),
+                orientation(coords[k], coords[l], coords[j]),
+            )
+            assert not (turns[0] * turns[1] < 0.0 and turns[2] * turns[3] < 0.0)
+
+
+def test_c60_plot_permutation_labels_use_molecule_key():
+    permutation_file = Path(cg.__file__).with_name("permutations_sat_bw.py")
+    labels, key = cg.load_plot_permutation_labels(
+        str(permutation_file),
+        Namespace(lattice="C60"),
+        60,
+        "C60",
+    )
+    assert key == "C60"
+    assert labels[5] == "8"
+    assert sorted(map(int, labels)) == list(range(60))

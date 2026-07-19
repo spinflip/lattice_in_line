@@ -10,6 +10,8 @@ python -m vmps_geometry.cluster_generator triangularXtorus --Nx 8 --Ny 4 --Nz 1
 python -m vmps_geometry.cluster_generator triangularBtorus --Nx 4 --Ny 4 --Nz 1
 python -m vmps_geometry.cluster_generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1 \
     --supersite-blocks path/to/kagomeBtorus108_6x6_ss2_assignment.txt
+python -m vmps_geometry.cluster_generator C60 \
+    --plot-permutation-file path/to/permutations_sat_bw.py
 """
 from __future__ import annotations
 
@@ -25,11 +27,31 @@ from pathlib import Path
 from fractions import Fraction
 from typing import Dict, List, Sequence, Tuple
 
+try:
+    from .cluster_edges import CLUSTER_EDGES
+except ImportError:  # Allow running this file directly.
+    from cluster_edges import CLUSTER_EDGES
+
 
 Vec3 = Tuple[float, float, float]
 IVec3 = Tuple[int, int, int]
 Bond = Tuple[int, int, IVec3]
 Edge = Tuple[int, int]
+
+MOLECULE_NAMES = (
+    "icosa",
+    "C12",
+    "C20",
+    "C24",
+    "C26",
+    "C28",
+    "C30",
+    "C36",
+    "C40",
+    "C60",
+    "cubocta",
+    "icosidodeca",
+)
 
 
 def resolve_geometry_path(path) -> Path:
@@ -983,6 +1005,99 @@ def build_edge_plot_segments(coords: Sequence[Vec3], edges: Sequence[Edge]) -> L
     ]
 
 
+def build_schlegel_coordinates(
+    n_sites: int,
+    edges: Sequence[Edge],
+    a: float = 1.0,
+) -> List[Vec3]:
+    """Return a radially expanded Schlegel-style embedding.
+
+    A pentagonal face is preferred when present; otherwise the largest face is
+    used. For the 3-connected molecular graphs here, fixing that face to a
+    regular polygon and placing every other vertex at its neighbors' barycenter
+    gives a crossing-free straight-line drawing. A radial power transform then
+    opens space around the otherwise crowded center while fixing the exterior.
+    """
+    try:
+        import networkx as nx
+    except ImportError as exc:
+        raise ImportError(
+            "Molecule plotting requires networkx; reinstall vmps_geometry."
+        ) from exc
+
+    import numpy as np
+
+    graph = nx.Graph()
+    graph.add_nodes_from(range(n_sites))
+    graph.add_edges_from(edges)
+    is_planar, embedding = nx.check_planarity(graph)
+    if not is_planar:
+        raise ValueError("A Schlegel projection requires a planar molecular graph.")
+
+    seen_half_edges = set()
+    faces = []
+    for i in sorted(embedding):
+        for j in embedding.neighbors_cw_order(i):
+            if (i, j) not in seen_half_edges:
+                faces.append(embedding.traverse_face(i, j, seen_half_edges))
+
+    def canonical_face(face: Sequence[int]) -> Tuple[int, ...]:
+        cycle = list(face)
+        variants = []
+        for order in (cycle, list(reversed(cycle))):
+            variants.extend(
+                tuple(order[offset:] + order[:offset])
+                for offset in range(len(order))
+            )
+        return min(variants)
+
+    face_sizes = {len(face) for face in faces}
+    outer_size = 5 if 5 in face_sizes else max(face_sizes)
+    outer = min(
+        canonical_face(face) for face in faces if len(face) == outer_size
+    )
+    outer_positions = {
+        site: (
+            a * cos(0.5 * pi - 2.0 * pi * index / outer_size),
+            a * sin(0.5 * pi - 2.0 * pi * index / outer_size),
+        )
+        for index, site in enumerate(outer)
+    }
+
+    interior = [site for site in range(n_sites) if site not in outer_positions]
+    interior_index = {site: index for index, site in enumerate(interior)}
+    matrix = np.zeros((len(interior), len(interior)), dtype=float)
+    rhs = np.zeros((len(interior), 2), dtype=float)
+    for site in interior:
+        row = interior_index[site]
+        matrix[row, row] = graph.degree(site)
+        for neighbor in graph[site]:
+            if neighbor in interior_index:
+                matrix[row, interior_index[neighbor]] -= 1.0
+            else:
+                rhs[row] += outer_positions[neighbor]
+
+    solved = np.linalg.solve(matrix, rhs) if interior else rhs
+    positions = dict(outer_positions)
+    positions.update(
+        (site, tuple(solved[interior_index[site]])) for site in interior
+    )
+
+    radial_power = 0.55
+    outer_radius = abs(a)
+    coords = []
+    for site in range(n_sites):
+        x, y = positions[site]
+        radius = sqrt(x * x + y * y)
+        scale = (
+            (radius / outer_radius) ** (radial_power - 1.0)
+            if radius > 0.0 and outer_radius > 0.0
+            else 1.0
+        )
+        coords.append((float(scale * x), float(scale * y), 0.0))
+    return coords
+
+
 def min_image_end(p: Vec3, q: Vec3, periods: "Periods") -> Tuple[Vec3, IVec3]:
     """Nearest periodic image of ``q`` relative to ``p`` and its integer wrap.
     Companion to :func:`min_image_dist2`, used to draw wrapped bonds."""
@@ -1740,11 +1855,20 @@ def plot_lattice(
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
-    # Generated plots go into a "plots" subfolder of the working directory.
-    # Absolute stems (or stems that already name a directory) are left as-is.
+    # Bare stems go into the repo's single plots/ folder (the same one the
+    # analysis tools use), located by walking up to the pyproject.toml so every
+    # tool writes to one place regardless of the caller's cwd. Absolute stems or
+    # stems that already name a directory are left as-is.
     output_path = Path(output_stem)
     if not output_path.is_absolute() and output_path.parent == Path("."):
-        output_path = Path.cwd() / "plots" / output_path
+        root = Path(__file__).resolve()
+        for anc in root.parents:
+            if (anc / "pyproject.toml").is_file():
+                root = anc
+                break
+        else:
+            root = Path.cwd()
+        output_path = root / "plots" / output_path
     elif not output_path.is_absolute():
         output_path = Path.cwd() / output_path
 
@@ -2096,7 +2220,7 @@ def _permutation_lookup_candidates(
     plot_stem: str,
     tilted_key: str | None = None,
 ) -> List[str]:
-    candidates = [Path(plot_stem).name, f"{args.lattice}{n_sites}"]
+    candidates = [args.lattice, Path(plot_stem).name, f"{args.lattice}{n_sites}"]
 
     if args.lattice == "pyrochlore" and tilted_key is not None and tilted_key != "custom":
         candidates.insert(0, f"pyrochlore{tilted_key}")
@@ -2200,7 +2324,7 @@ def shell_plot_stem(stem: str, shell: int) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Print Cartesian coordinates and edge lists for finite periodic clusters."
+        description="Print coordinates and edge lists for finite lattices and molecules."
     )
 
     parser.add_argument(
@@ -2224,8 +2348,9 @@ def parse_args() -> argparse.Namespace:
             "triangularXtorus",
             "squareCyl",
             "squareTorus",
+            *MOLECULE_NAMES,
         ],
-        help="Lattice type.",
+        help="Lattice or molecule type.",
     )
 
     parser.add_argument("--Nx", type=int)
@@ -2323,7 +2448,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Optional path to a permutation file such as permutations_sat.py. "
+            "Optional path to a permutation file such as permutations_sat_bw.py. "
             "When set, the plot annotates each generated vertex with its "
             "optimized enumeration index from CUSTOM_PERMUTATIONS."
         ),
@@ -2397,7 +2522,6 @@ def shell_json_fields(shell_meta) -> Dict:
 
 def main() -> None:
     args = parse_args()
-    lattice = get_lattice(args.lattice, args.trillium_u)
 
     if args.neighbor_shell < 1:
         raise ValueError("--neighbor-shell must be a positive integer (1 = nearest neighbour).")
@@ -2410,6 +2534,90 @@ def main() -> None:
 
     if args.plot_dpi <= 0:
         raise ValueError("--plot-dpi must be positive.")
+
+    if args.lattice in MOLECULE_NAMES:
+        if args.Nx is not None or args.Ny is not None or args.Nz is not None:
+            raise ValueError("Molecules do not use --Nx, --Ny, or --Nz.")
+        if args.supercell is not None or args.tilted is not None:
+            raise ValueError("Molecules do not use --supercell or --tilted.")
+        if args.neighbor_shell != 1:
+            raise ValueError("Molecular Schlegel coordinates only define neighbor shell 1.")
+
+        edges = list(CLUSTER_EDGES[args.lattice])
+        n_sites = max(max(edge) for edge in edges) + 1
+        coords = build_schlegel_coordinates(n_sites, edges, a=args.a)
+        plot_segments = build_edge_plot_segments(coords, edges)
+        plot_stem = args.lattice
+        site_labels = None
+        permutation_key = None
+        if args.plot_permutation_file is not None:
+            site_labels, permutation_key = load_plot_permutation_labels(
+                args.plot_permutation_file,
+                args,
+                n_sites,
+                plot_stem,
+            )
+        supersite_blocks = None
+        if args.plot_supersite_blocks is not None:
+            supersite_blocks = load_plot_supersite_blocks(
+                args.plot_supersite_blocks, n_sites
+            )
+        png_path, pdf_path = plot_lattice(
+            coords,
+            plot_segments,
+            plot_stem,
+            dpi=args.plot_dpi,
+            site_labels=site_labels,
+            supersite_blocks=supersite_blocks,
+        )
+
+        if args.format == "edgelist":
+            print_edge_list(edges, [
+                f"molecule = {args.lattice}",
+                f"n_sites = {n_sites}",
+                f"n_edges = {len(edges)}",
+            ])
+            return
+
+        if args.format == "json":
+            payload = {
+                "molecule": args.lattice,
+                "projection": "Schlegel (Tutte embedding)",
+                "n_sites": n_sites,
+                "n_edges": len(edges),
+                "coords": coords,
+                "edges": edges,
+                "plot_png": str(png_path),
+                "plot_pdf": str(pdf_path),
+            }
+            if permutation_key is not None:
+                payload["plot_permutation_file"] = args.plot_permutation_file
+                payload["plot_permutation_key"] = permutation_key
+            if supersite_blocks is not None:
+                payload["plot_supersite_blocks"] = args.plot_supersite_blocks
+                payload["num_supersites"] = len(supersite_blocks)
+            print(json.dumps(payload, indent=2))
+            return
+
+        print(f"# molecule = {args.lattice}")
+        print("# projection = Schlegel (Tutte embedding)")
+        print(f"# n_sites = {n_sites}")
+        print(f"# n_edges = {len(edges)}")
+        if permutation_key is not None:
+            print(f"# plot_permutation_file = {args.plot_permutation_file}")
+            print(f"# plot_permutation_key = {permutation_key}")
+        if supersite_blocks is not None:
+            print(f"# plot_supersite_blocks = {args.plot_supersite_blocks}")
+            print(f"# num_supersites = {len(supersite_blocks)}")
+        print(f"# plot_png = {png_path}")
+        print(f"# plot_pdf = {pdf_path}")
+        print()
+        print_compact_coords(coords, per_line=args.coords_per_line)
+        print()
+        print_compact_edges(edges, per_line=args.edges_per_line)
+        return
+
+    lattice = get_lattice(args.lattice, args.trillium_u)
 
     if args.lattice in KAGOME_STRIP_VARIANTS or args.lattice in TRIANGULAR_STRIP_VARIANTS:
         if args.Nx is None or args.Ny is None or args.Nz is None:
