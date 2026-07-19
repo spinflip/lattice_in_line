@@ -28,13 +28,6 @@ def test_canonical_permutation_files_resolve_from_bare_names():
         assert cgraphs.resolve_geometry_path(filename).is_file()
 
 
-def test_common_permutation_typo_aliases_resolve():
-    assert cgraphs.resolve_geometry_path("permutation_sat_bw.py").name == "permutations_sat_bw.py"
-    assert cgraphs.resolve_geometry_path("permutation_sat_cw.py").name == "permutations_sat_cw.py"
-    assert cgraphs.resolve_geometry_path("permutation_qubo_bw.py").name == "permutations_qubo_bw.py"
-    assert cgraphs.resolve_geometry_path("permuation_sat_cw.py").name == "permutations_sat_cw.py"
-
-
 def test_sa_lex_stays_feasible_and_does_not_worsen_j2():
     n = 6
     e1 = [(i, i + 1) for i in range(5)]          # a path (dominant coupling)

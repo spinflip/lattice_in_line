@@ -43,12 +43,6 @@ _PERMUTATION_FILE_ALIASES = {
     "permutations_sat.py": "permutations_sat_bw.py",
     "permutations_sat_cutwidth.py": "permutations_sat_cw.py",
     "permutations_qubo.py": "permutations_qubo_bw.py",
-    "permutation_sat_bw.py": "permutations_sat_bw.py",
-    "permutation_sat_cw.py": "permutations_sat_cw.py",
-    "permutation_qubo_bw.py": "permutations_qubo_bw.py",
-    "permuation_sat_bw.py": "permutations_sat_bw.py",
-    "permuation_sat_cw.py": "permutations_sat_cw.py",
-    "permuation_qubo_bw.py": "permutations_qubo_bw.py",
 }
 
 
