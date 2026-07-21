@@ -18,15 +18,13 @@ jobs:
           pip install -e '.[dev]'
       - name: Run pytest
         run: pytest -q
-      - name: NNN tables are up to date (regenerate and diff)
+      - name: NNN table generator smoke test
         run: |
-          vmps-build-nnn-tables
-          git diff --exit-code -- src/vmps_geometry/cluster_edges_NNN.py \
-            || { echo "::error::cluster_edges_NNN.py is stale; run vmps-build-nnn-tables and commit"; exit 1; }
+          lil-build-nnn-tables   # generated artifact (not shipped); ensure it builds
       - name: Shell syntax check
         run: |
-          for f in src/vmps_geometry/*.sh; do bash -n "$f"; done
+          for f in src/lattice_in_line/*.sh; do bash -n "$f"; done
       - name: shellcheck (advisory)
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          shellcheck -S warning src/vmps_geometry/*.sh || true
+          shellcheck -S warning src/lattice_in_line/*.sh || true

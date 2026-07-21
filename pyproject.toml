@@ -30,18 +30,18 @@ dev = ["pytest"]
 all = ["matplotlib", "ortools", "python-sat", "pynauty", "scipy"]
 
 [project.scripts]
-vmps-cluster-generator = "lattice_in_line.cluster_generator:main"
-vmps-bandwidth-certifier = "lattice_in_line.bandwidth_certifier:main"
-vmps-fiedler-ordering = "lattice_in_line.fiedler_ordering:main"
-vmps-dmrg-log-to-json = "lattice_in_line.dmrg_log_to_json:main"
-vmps-build-nnn-tables = "lattice_in_line.build_cluster_edges_NNN:main"
-vmps-bandwidth-benchmark = "lattice_in_line.bandwidth_heuristics_benchmark:main"
-vmps-bandwidth-cutwidth-correlation = "lattice_in_line.bandwidth_cutwidth_correlation:main"
-vmps-gather-permutations = "lattice_in_line.gather_permutations:main"
-vmps-analyze-mpo-correlation = "lattice_in_line.analyze_mpo_correlation:main"
-vmps-qubo-bandwidth = "lattice_in_line.qubo.bandwidth_qubo_tsq:main"
-vmps-qubo-classical-compare = "lattice_in_line.qubo.bandwidth_classical_compare:main"
-vmps-qubo-sweep = "lattice_in_line.qubo.sweep_bandwidth_qubo_tsq:main"
+lil-cluster-generator = "lattice_in_line.cluster_generator:main"
+lil-bandwidth-certifier = "lattice_in_line.bandwidth_certifier:main"
+lil-fiedler-ordering = "lattice_in_line.fiedler_ordering:main"
+lil-dmrg-log-to-json = "lattice_in_line.dmrg_log_to_json:main"
+lil-build-nnn-tables = "lattice_in_line.build_cluster_edges_NNN:main"
+lil-bandwidth-benchmark = "lattice_in_line.bandwidth_heuristics_benchmark:main"
+lil-bandwidth-cutwidth-correlation = "lattice_in_line.bandwidth_cutwidth_correlation:main"
+lil-gather-permutations = "lattice_in_line.gather_permutations:main"
+lil-analyze-mpo-correlation = "lattice_in_line.analyze_mpo_correlation:main"
+lil-qubo-bandwidth = "lattice_in_line.qubo.bandwidth_qubo_tsq:main"
+lil-qubo-classical-compare = "lattice_in_line.qubo.bandwidth_classical_compare:main"
+lil-qubo-sweep = "lattice_in_line.qubo.sweep_bandwidth_qubo_tsq:main"
 
 [tool.setuptools]
 include-package-data = true

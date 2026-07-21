@@ -1,17 +1,17 @@
-# vmps_geometry
+# lattice_in_line
 
 Geometry, ordering, and bandwidth-certification toolkit for VMPS/DMRG frustrated-magnet
 lattice models: cluster generation, nearest- and further-neighbour edge tables,
 certified minimum-bandwidth campaigns (including a lexicographic J1→J2 mode),
 correlation-aware (Fiedler) orderings, and a QUBO experiment track.
 
-The import package is `vmps_geometry`. Only `numpy` is required at the core; every
+The import package is `lattice_in_line`. Only `numpy` is required at the core; every
 heavier subsystem is an optional extra and is imported lazily.
 
 ## Installation
 
 ```bash
-cd /path/to/vmps_geometry
+cd /path/to/lattice_in_line
 pip install -e .            # core (numpy only)
 pip install -e '.[all]'     # everything
 ```
@@ -30,22 +30,22 @@ Extras (declared in `pyproject.toml`):
 
 | Command | What it does |
 |---|---|
-| `vmps-cluster-generator` | generate a cluster's coordinates + neighbour graph |
-| `vmps-bandwidth-certifier` | certified minimum-bandwidth engine (many subcommands) |
-| `vmps-fiedler-ordering` | correlation-aware ordering from a DMRG correlation matrix / results JSON |
-| `vmps-dmrg-log-to-json` | convert a DMRG `.log` into the results-JSON schema |
-| `vmps-build-nnn-tables` | regenerate `cluster_edges_NNN.py` from the generator |
-| `vmps-qubo-*` | experimental QUBO bandwidth track (see below) |
+| `lil-cluster-generator` | generate a cluster's coordinates + neighbour graph |
+| `lil-bandwidth-certifier` | certified minimum-bandwidth engine (many subcommands) |
+| `lil-fiedler-ordering` | correlation-aware ordering from a DMRG correlation matrix / results JSON |
+| `lil-dmrg-log-to-json` | convert a DMRG `.log` into the results-JSON schema |
+| `lil-build-nnn-tables` | regenerate `cluster_edges_NNN.py` from the generator |
+| `lil-qubo-*` | experimental QUBO bandwidth track (see below) |
 
 ## Cluster generation
 
 ```bash
 # nearest-neighbour (J1) graph, human-readable python output
-vmps-cluster-generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1
+lil-cluster-generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1
 
 # next-nearest-neighbour (J2): the 2nd real-space distance shell.
 # --neighbor-shell N (alias --shell) selects shell N; N=1 is the default NN graph.
-vmps-cluster-generator garnet --Nx 2 --Ny 2 --Nz 2 --neighbor-shell 2 --format edgelist > garnet_nnn.txt
+lil-cluster-generator garnet --Nx 2 --Ny 2 --Nz 2 --neighbor-shell 2 --format edgelist > garnet_nnn.txt
 ```
 
 - `--format {python,json,edgelist}` — `edgelist` prints whitespace `u v` pairs
@@ -57,7 +57,7 @@ vmps-cluster-generator garnet --Nx 2 --Ny 2 --Nz 2 --neighbor-shell 2 --format e
 
 ## Bandwidth certification
 
-`vmps-bandwidth-certifier` certifies the minimum bandwidth k\* of a cluster with
+`lil-bandwidth-certifier` certifies the minimum bandwidth k\* of a cluster with
 (i) a feasible labeling of bandwidth k\* and (ii) an infeasibility proof for k\*−1.
 Proofs come at three strengths, all tracked in the state file: `math` (combinatorial
 bounds), `cpsat` (CP-SAT verdict), `drat` (external SAT solver UNSAT + DRAT proof).
@@ -69,10 +69,10 @@ file under a lock, so many jobs can run in parallel across seeds / k-values / ma
 The subcommands (`info`, `heuristic`, `optimize`, `ladder`, `decide`, `cnf`,
 `verify-unsat`, … plus the `lex-*`, `w-*`, `h2-*`, `ss-*` families) can be driven by
 hand, but the campaign scripts wrap the whole workflow. They live in the package
-directory (`src/vmps_geometry/`) and append to their logs:
+directory (`src/lattice_in_line/`) and append to their logs:
 
 ```bash
-cd src/vmps_geometry
+cd src/lattice_in_line
 ./certify_cluster.sh pyrochlore128          # full campaign for one cluster
 ./certify_small.sh                          # batch of small clusters
 ./certify_large.sh pyrochlore128            # one big cluster (nohup, more resources)
@@ -86,7 +86,7 @@ cap k1 — the lexicographic (k1, then k2) objective. J2 defaults to the same-na
 in `cluster_edges_NNN.py`, or pass an explicit edge file.
 
 ```bash
-cd src/vmps_geometry
+cd src/lattice_in_line
 # prerequisite: J1 bandwidth already in the shared data dir
 # (run ./certify_small.sh / ./certify_large.sh), or pass K1=<cap> explicitly.
 ./certify_lex_small.sh  kagomeYcyl288_16x12                 # small batch / one cluster
@@ -119,11 +119,11 @@ puts strongly-correlated sites near each other. Pipeline:
 
 ```bash
 # 1. DMRG run log -> results JSON
-vmps-dmrg-log-to-json model=Heis_sys=pyrochlore64.log -o results.json
+lil-dmrg-log-to-json model=Heis_sys=pyrochlore64.log -o results.json
 
 # 2. results JSON (correlations of the lowest-energy run are picked automatically)
 #    -> permutation. Also accepts a raw .npy / whitespace-text correlation matrix.
-vmps-fiedler-ordering results.json --weights concurrence --refine --out order.txt
+lil-fiedler-ordering results.json --weights concurrence --refine --out order.txt
 ```
 
 `--weights`: `abs` (|C|, sign-blind), `concurrence` (`max(0, −2C − 1/2)`, recommended
@@ -131,31 +131,33 @@ for spin-1/2 `<S_i·S_j>` — FM pairs correctly get ~0 weight), or `mi` (input 
 mutual information). `--refine` adds a local-search polish; `--objective` picks weighted
 bandwidth vs. cutwidth.
 
-## Regenerating the NNN tables
+## The NNN (next-nearest-neighbour) tables
 
-`cluster_edges_NNN.py` is generated from `cluster_edges.py` + the generator and kept in
-the repo. After changing either, regenerate and commit:
+`cluster_edges_NNN.py` is a **generated artifact** — it is not shipped in the repo.
+Build it on demand from `cluster_edges.py` + the generator:
 
 ```bash
-vmps-build-nnn-tables         # rewrites src/vmps_geometry/cluster_edges_NNN.py
+lil-build-nnn-tables         # writes src/lattice_in_line/cluster_edges_NNN.py
 ```
 
-CI regenerates and diffs it, so the committed table can never drift from the generator.
+The lexicographic J1→J2 mode reads this table as its default J2 source, so build it
+once before running lex campaigns (or pass an explicit `--j2-file`). CI smoke-tests
+the generator on every run.
 
 ## QUBO track (experimental)
 
-`vmps_geometry.qubo` (`vmps-qubo-bandwidth`, `vmps-qubo-classical-compare`,
-`vmps-qubo-sweep`) is an **experimental** bandwidth-via-QUBO track (needs the `qubo`
+`lattice_in_line.qubo` (`lil-qubo-bandwidth`, `lil-qubo-classical-compare`,
+`lil-qubo-sweep`) is an **experimental** bandwidth-via-QUBO track (needs the `qubo`
 extra). It carries none of the certifier's guarantees and is not maintained in lockstep
-with it — prefer `vmps-bandwidth-certifier` for real results.
+with it — prefer `lil-bandwidth-certifier` for real results.
 
 The heavy lifting is done by two **C++ solvers** the Python front-ends shell out to.
-Their source is vendored under [`src/vmps_geometry/qubo/cpp/`](src/vmps_geometry/qubo/cpp);
+Their source is vendored under [`src/lattice_in_line/qubo/cpp/`](src/lattice_in_line/qubo/cpp);
 build them with `make` (the QUBO solver needs [Eigen](https://eigen.tuxfamily.org);
 the Makefile auto-detects a Homebrew/system `eigen3`):
 
 ```bash
-cd src/vmps_geometry/qubo/cpp
+cd src/lattice_in_line/qubo/cpp
 make                                   # -> bandwidth_qubo_tsq_cpp, bandwidth_classical_compare_cpp
 ```
 
@@ -163,7 +165,7 @@ Point the Python driver at the built binary with `--cpp-binary`
 (default: `bandwidth_qubo_tsq_cpp`, looked up from the working directory):
 
 ```bash
-vmps-qubo-bandwidth ... --cpp-binary src/vmps_geometry/qubo/cpp/bandwidth_qubo_tsq_cpp
+lil-qubo-bandwidth ... --cpp-binary src/lattice_in_line/qubo/cpp/bandwidth_qubo_tsq_cpp
 ```
 
 The dense NumPy tabu-search solver `qubo/tsqubo.py` is a Python translation of the C++
