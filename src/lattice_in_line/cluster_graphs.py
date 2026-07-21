@@ -72,16 +72,14 @@ def resolve_geometry_path(path) -> Path:
         if matched is not None:
             return matched
     parts = raw.parts
-    if "vmps_geometry" in parts:
-        idx = parts.index("vmps_geometry")
-        matched = _match(base.joinpath(*parts[idx + 1:]))
-        if matched is not None:
-            return matched
-    if "geometry" in parts:
-        idx = parts.index("geometry")
-        matched = _match(base.joinpath(*parts[idx + 1:]))
-        if matched is not None:
-            return matched
+    # accept a package-dir prefix and resolve the tail against this package;
+    # "vmps_geometry"/"geometry" are legacy names kept for old path strings.
+    for prefix in ("lattice_in_line", "vmps_geometry", "geometry"):
+        if prefix in parts:
+            idx = parts.index(prefix)
+            matched = _match(base.joinpath(*parts[idx + 1:]))
+            if matched is not None:
+                return matched
     return raw
 
 
@@ -300,7 +298,7 @@ def parse_unit_cell_params(raw_params) -> Dict[str, object]:
 
 
 def _load_python_geometry_module(path: Path):
-    spec = importlib.util.spec_from_file_location(f"vmps_geometry_{path.stem}", path)
+    spec = importlib.util.spec_from_file_location(f"lattice_in_line_{path.stem}", path)
     if spec is None or spec.loader is None:
         raise ValueError(f"Could not import Python geometry file {path}")
     module = importlib.util.module_from_spec(spec)

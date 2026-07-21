@@ -97,8 +97,8 @@ from collections import deque
 # --------------------------------------------------------------------
 if __package__ in (None, ""):  # bare-script run: make the package importable
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from vmps_geometry.certify.core import *  # noqa: F401,F403
-from vmps_geometry.certify.core import (  # noqa: F401  (explicit re-export)
+from lattice_in_line.certify.core import *  # noqa: F401,F403
+from lattice_in_line.certify.core import (  # noqa: F401  (explicit re-export)
     State, adjacency, bfs_dist, bandwidth_of, ceil_div, combinatorial_lb,
     total_range, load_cluster, load_edge_file, get_graph, print_status,
 )

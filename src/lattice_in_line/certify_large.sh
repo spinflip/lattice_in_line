@@ -58,4 +58,4 @@ echo "launched large campaign for $CLUSTER (pid $!)"
 echo "  campaign log: $DATA_DIR/certify_${CLUSTER}${LOGTAG}.log"
 
 ## extract mid-run:
-#python -m vmps_geometry.bandwidth_certifier export --cluster "$CLUSTER" --state-dir "bw_run_${CLUSTER}" > "current_best_${CLUSTER}.json"
+#python -m lattice_in_line.bandwidth_certifier export --cluster "$CLUSTER" --state-dir "bw_run_${CLUSTER}" > "current_best_${CLUSTER}.json"

@@ -30,7 +30,7 @@ Two datasets (choose with --mode):
              dense graphs), so its linear r is lower while the rank rho stays high.
 
 Usage:
-  python -m vmps_geometry.bandwidth_cutwidth_correlation   # -> plots/bandwidth_cutwidth_correlation.png
+  python -m lattice_in_line.bandwidth_cutwidth_correlation   # -> plots/bandwidth_cutwidth_correlation.png
   vmps-bandwidth-cutwidth-correlation --mode per-graph --out corr.png
   vmps-bandwidth-cutwidth-correlation --graphs pyrochlore,kagome --csv pts.csv
 

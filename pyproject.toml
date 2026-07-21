@@ -30,18 +30,18 @@ dev = ["pytest"]
 all = ["matplotlib", "ortools", "python-sat", "pynauty", "scipy"]
 
 [project.scripts]
-vmps-cluster-generator = "vmps_geometry.cluster_generator:main"
-vmps-bandwidth-certifier = "vmps_geometry.bandwidth_certifier:main"
-vmps-fiedler-ordering = "vmps_geometry.fiedler_ordering:main"
-vmps-dmrg-log-to-json = "vmps_geometry.dmrg_log_to_json:main"
-vmps-build-nnn-tables = "vmps_geometry.build_cluster_edges_NNN:main"
-vmps-bandwidth-benchmark = "vmps_geometry.bandwidth_heuristics_benchmark:main"
-vmps-bandwidth-cutwidth-correlation = "vmps_geometry.bandwidth_cutwidth_correlation:main"
-vmps-gather-permutations = "vmps_geometry.gather_permutations:main"
-vmps-analyze-mpo-correlation = "vmps_geometry.analyze_mpo_correlation:main"
-vmps-qubo-bandwidth = "vmps_geometry.qubo.bandwidth_qubo_tsq:main"
-vmps-qubo-classical-compare = "vmps_geometry.qubo.bandwidth_classical_compare:main"
-vmps-qubo-sweep = "vmps_geometry.qubo.sweep_bandwidth_qubo_tsq:main"
+vmps-cluster-generator = "lattice_in_line.cluster_generator:main"
+vmps-bandwidth-certifier = "lattice_in_line.bandwidth_certifier:main"
+vmps-fiedler-ordering = "lattice_in_line.fiedler_ordering:main"
+vmps-dmrg-log-to-json = "lattice_in_line.dmrg_log_to_json:main"
+vmps-build-nnn-tables = "lattice_in_line.build_cluster_edges_NNN:main"
+vmps-bandwidth-benchmark = "lattice_in_line.bandwidth_heuristics_benchmark:main"
+vmps-bandwidth-cutwidth-correlation = "lattice_in_line.bandwidth_cutwidth_correlation:main"
+vmps-gather-permutations = "lattice_in_line.gather_permutations:main"
+vmps-analyze-mpo-correlation = "lattice_in_line.analyze_mpo_correlation:main"
+vmps-qubo-bandwidth = "lattice_in_line.qubo.bandwidth_qubo_tsq:main"
+vmps-qubo-classical-compare = "lattice_in_line.qubo.bandwidth_classical_compare:main"
+vmps-qubo-sweep = "lattice_in_line.qubo.sweep_bandwidth_qubo_tsq:main"
 
 [tool.setuptools]
 include-package-data = true
@@ -50,13 +50,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-vmps_geometry = [
+lattice_in_line = [
     "permutations*.py",
     "unit_cell/*.py",
     "*.sh",
 ]
 # Vendored C++ QUBO solvers (built out-of-tree; see qubo/cpp/Makefile).
-"vmps_geometry.qubo" = [
+"lattice_in_line.qubo" = [
     "cpp/Makefile",
     "cpp/*.cpp",
     "cpp/libtsqubo/tsqubo.h",

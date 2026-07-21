@@ -3,7 +3,7 @@ graphs, and the garnet NN-disconnected / NNN-connects invariant holds."""
 from argparse import Namespace
 from pathlib import Path
 
-import vmps_geometry.cluster_generator as cg
+import lattice_in_line.cluster_generator as cg
 
 # (lattice, Nx, Ny, Nz, expected n_sites) — all bulk (make_diagonal) lattices.
 REPRESENTATIVE = [

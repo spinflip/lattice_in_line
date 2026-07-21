@@ -7,7 +7,7 @@ EdgeList = List[Tuple[int, int]]
 
 CLUSTER_EDGES: Dict[str, EdgeList] = {
     # Molecular/fullerene clusters: static tables, not constructed by
-    # vmps_geometry.cluster_generator.
+    # lattice_in_line.cluster_generator.
     "icosa": [
         (0, 1), (0, 2), (0, 3), (0, 4), (0, 7), (1, 2), (1, 4), (1, 5),
         (1, 8), (2, 3), (2, 5), (2, 6), (3, 6), (3, 7), (3, 11), (4, 7),
@@ -111,7 +111,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (24, 26), (24, 27), (25, 28), (26, 27), (26, 29), (27, 28),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --Nx 2 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --Nx 2 --Ny 2 --Nz 2
     "pyrochlore32": [
         (0, 1), (0, 2), (0, 3), (0, 7), (0, 10), (0, 17), (1, 2), (1, 3), (1, 16),
         (1, 23), (1, 26), (2, 3), (2, 8), (2, 15), (2, 25), (3, 4), (3, 14), (3, 21),
@@ -127,7 +127,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (28, 31), (29, 30), (29, 31), (30, 31),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 48a
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 48a
     "pyrochlore48a": [
         (0, 1), (0, 2), (0, 3), (0, 7), (0, 14), (0, 21), (1, 2), (1, 3), (1, 16),
         (1, 35), (1, 42), (2, 3), (2, 8), (2, 27), (2, 41), (3, 4), (3, 30), (3, 37),
@@ -147,7 +147,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (41, 43), (42, 43), (43, 44), (44, 45), (44, 46), (44, 47), (45, 46), (45, 47), (46, 47),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 48b
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 48b
     "pyrochlore48b": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 18), (0, 25), (1, 2), (1, 3), (1, 20),
         (1, 30), (1, 35), (2, 3), (2, 12), (2, 29), (2, 43), (3, 4), (3, 38), (3, 45),
@@ -167,7 +167,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (41, 43), (42, 43), (42, 47), (44, 45), (44, 46), (44, 47), (45, 46), (45, 47), (46, 47),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 48c
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 48c
     "pyrochlore48c": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 18), (0, 25), (1, 2), (1, 3), (1, 20),
         (1, 39), (1, 46), (2, 3), (2, 12), (2, 31), (2, 45), (3, 4), (3, 30), (3, 37),
@@ -187,7 +187,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (41, 42), (41, 43), (42, 43), (44, 45), (44, 46), (44, 47), (45, 46), (45, 47), (46, 47),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 48d
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 48d
     "pyrochlore48d": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 18), (0, 25), (1, 2), (1, 3), (1, 20),
         (1, 39), (1, 46), (2, 3), (2, 12), (2, 35), (2, 45), (3, 4), (3, 34), (3, 37),
@@ -207,7 +207,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (41, 42), (41, 43), (42, 43), (44, 45), (44, 46), (44, 47), (45, 46), (45, 47), (46, 47),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 64
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 64
     "pyrochlore64": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 18), (0, 25), (1, 2), (1, 3), (1, 20),
         (1, 47), (1, 58), (2, 3), (2, 12), (2, 43), (2, 53), (3, 4), (3, 34), (3, 37),
@@ -233,7 +233,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (61, 62), (61, 63), (62, 63),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --Nx 3 --Ny 3 --Nz 3
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --Nx 3 --Ny 3 --Nz 3
     "pyrochlore108": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 26), (0, 73), (1, 2), (1, 3), (1, 36),
         (1, 47), (1, 62), (2, 3), (2, 12), (2, 23), (2, 85), (3, 4), (3, 30), (3, 77),
@@ -282,7 +282,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     ],
     # Generator candidate, but stored table is permuted relative to the raw output:
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator pyrochlore --tilted 128
+    # python3 -m lattice_in_line.cluster_generator pyrochlore --tilted 128
     "pyrochlore128": [
         (0, 1), (0, 2), (0, 3), (0, 11), (0, 18), (0, 25), (1, 2), (1, 3), (1, 20),
         (1, 59), (1, 78), (2, 3), (2, 12), (2, 51), (2, 73), (3, 4), (3, 38), (3, 45),
@@ -329,7 +329,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (124, 125), (124, 126), (124, 127), (125, 126), (125, 127), (126, 127),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 4 --Ny 1 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 4 --Ny 1 --Nz 1
     "hyperkagome48_4x1x1": [
         (0, 4), (0, 11), (4, 11), (3, 4), (3, 5), (4, 5), (1, 5), (1, 7), (5, 7),
         (0, 1), (0, 2), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -345,7 +345,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (39, 44), (39, 46), (44, 46), (9, 46), (9, 11), (11, 46)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 2 --Ny 2 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 2 --Ny 2 --Nz 1
     "hyperkagome48_2x2x1": [
         (0, 4), (0, 11), (4, 11), (3, 4), (3, 5), (4, 5), (1, 5), (1, 7), (5, 7),
         (1, 24), (2, 24), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -361,7 +361,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (39, 44), (39, 46), (44, 46), (9, 46), (9, 35), (35, 46)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 5 --Ny 1 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 5 --Ny 1 --Nz 1
     "hyperkagome60_5x1x1": [
         (0, 4), (0, 11), (4, 11), (3, 4), (3, 5), (4, 5), (1, 5), (1, 7), (5, 7),
         (0, 1), (0, 2), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -380,7 +380,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (51, 56), (51, 58), (56, 58), (9, 58), (9, 11), (11, 58)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 6 --Ny 1 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 6 --Ny 1 --Nz 1
     "hyperkagome72_6x1x1": [
         (0, 4), (0, 11), (4, 11), (3, 4), (3, 5), (4, 5), (1, 5), (1, 7), (5, 7),
         (0, 1), (0, 2), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -402,7 +402,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (63, 68), (63, 70), (68, 70), (9, 70), (9, 11), (11, 70)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 3 --Ny 2 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 3 --Ny 2 --Nz 1
     "hyperkagome72_3x2x1": [
         (0, 4), (0, 11), (4, 11), (3, 4), (3, 5), (4, 5), (1, 5), (1, 7), (5, 7),
         (1, 36), (2, 36), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -424,7 +424,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (63, 68), (63, 70), (68, 70), (9, 70), (9, 47), (47, 70)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 2 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 2 --Ny 2 --Nz 2
     "hyperkagome96_2x2x2": [
         (0, 4), (0, 11), (4, 11), (4, 51), (5, 51), (4, 5), (1, 5), (1, 7), (5, 7),
         (1, 24), (2, 24), (1, 2), (2, 6), (2, 9), (6, 9), (7, 18), (8, 18), (7, 8),
@@ -452,7 +452,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (87, 92), (87, 94), (92, 94), (57, 94), (35, 57), (35, 94)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 3 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 3 --Ny 2 --Nz 2
     "hyperkagome144_3x2x2": [
         (0, 4), (0, 11), (0, 37), (0, 38), (1, 2), (1, 5), (1, 7), (1, 36), (2, 6), (2, 9), (2, 36), (3, 8),
         (3, 10), (3, 76), (3, 77), (4, 5), (4, 11), (4, 75), (5, 7), (5, 75), (6, 9), (6, 31), (6, 32),
@@ -487,7 +487,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (136, 137), (136, 143), (137, 139), (138, 141), (139, 140), (140, 142)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 3 --Ny 3 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 3 --Ny 3 --Nz 2
     "hyperkagome216_3x3x2": [
     (0, 4), (0, 11), (0, 37), (0, 38), (1, 2), (1, 5), (1, 7), (1, 72),
     (2, 6), (2, 9), (2, 72), (3, 8), (3, 10), (3, 112), (3, 113), (4, 5),
@@ -545,7 +545,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     (207, 212), (207, 214), (208, 209), (208, 215), (209, 211), (210, 213), (211, 212), (212, 214),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator hyperkagome --Nx 3 --Ny 3 --Nz 3
+    # python3 -m lattice_in_line.cluster_generator hyperkagome --Nx 3 --Ny 3 --Nz 3
     "hyperkagome324_3x3x3": [
     (0, 4), (0, 11), (0, 37), (0, 38), (1, 2), (1, 5), (1, 7), (1, 72),
     (2, 6), (2, 9), (2, 72), (3, 8), (3, 10), (3, 112), (3, 113), (4, 5),
@@ -630,7 +630,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     (315, 320), (315, 322), (316, 317), (316, 323), (317, 319), (318, 321), (319, 320), (320, 322),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator trillium --Nx 2 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator trillium --Nx 2 --Ny 2 --Nz 2
     "trillium32_2x2x2": [
         (1, 20), (14, 20), (6, 20), (17, 20), (20, 27), (20, 31), (10, 16), (16, 21), (5, 16),
         (16, 27), (16, 31), (19, 28), (17, 19), (18, 19), (19, 24), (19, 25), (13, 24), (10, 24),
@@ -645,7 +645,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (29, 31), (30, 31)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator trillium --Nx 3 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator trillium --Nx 3 --Ny 2 --Nz 2
     "trillium48_3x2x2": [
         (1, 20), (14, 20), (6, 20), (17, 20), (20, 27), (20, 31), (10, 16), (5, 16), (16, 27),
         (16, 21), (16, 31), (19, 28), (17, 19), (18, 19), (19, 24), (19, 25), (13, 24), (10, 24),
@@ -665,7 +665,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (38, 39), (37, 39), (39, 45), (42, 45), (45, 46)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator trillium --Nx 4 --Ny 2 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator trillium --Nx 4 --Ny 2 --Nz 2
     "trillium64_4x2x2": [
         (1, 20), (14, 20), (6, 20), (17, 20), (20, 27), (20, 31), (10, 16), (5, 16), (16, 27),
         (16, 21), (16, 31), (19, 28), (17, 19), (18, 19), (19, 24), (19, 25), (13, 24), (10, 24),
@@ -690,7 +690,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (57, 60), (57, 62), (58, 59), (58, 61), (61, 62), (61, 63), (62, 63)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator trillium --Nx 3 --Ny 3 --Nz 2
+    # python3 -m lattice_in_line.cluster_generator trillium --Nx 3 --Ny 3 --Nz 2
     "trillium72_3x3x2": [
         (1, 28), (28, 47), (25, 28), (6, 28), (22, 28), (28, 43), (24, 47), (24, 29), (5, 24),
         (18, 24), (24, 43), (27, 36), (25, 27), (26, 27), (27, 32), (27, 33), (13, 32), (10, 32),
@@ -718,7 +718,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (66, 69), (69, 70), (69, 71), (70, 71)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator trillium --Nx 3 --Ny 3 --Nz 3
+    # python3 -m lattice_in_line.cluster_generator trillium --Nx 3 --Ny 3 --Nz 3
     "trillium108_3x3x3": [
         (1, 40), (37, 40), (40, 67), (6, 40), (30, 40), (40, 63), (9, 36), (36, 71), (26, 36),
         (36, 45), (36, 63), (37, 39), (39, 52), (38, 39), (39, 49), (39, 48), (48, 57), (47, 48),
@@ -759,7 +759,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
         (105, 106), (105, 107), (106, 107)
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator kagomeYcyl --Nx 16 --Ny 8 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator kagomeYcyl --Nx 16 --Ny 8 --Nz 1
     "kagomeYcyl192_16x8": [
     (0, 5), (0, 6), (1, 7), (1, 8), (2, 9), (2, 10), (3, 4), (3, 11),
     (4, 5), (4, 11), (4, 12), (5, 6), (5, 12), (6, 7), (6, 13), (7, 8),
@@ -810,7 +810,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     (184, 185), (184, 191), (185, 186), (186, 187), (187, 188), (188, 189), (189, 190), (190, 191),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator kagomeYcyl --Nx 16 --Ny 12 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator kagomeYcyl --Nx 16 --Ny 12 --Nz 1
     "kagomeYcyl288_16x12": [
     (0, 7), (0, 8), (1, 9), (1, 10), (2, 11), (2, 12), (3, 13), (3, 14),
     (4, 15), (4, 16), (5, 6), (5, 17), (6, 7), (6, 17), (6, 18), (7, 8),
@@ -885,7 +885,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     (283, 284), (284, 285), (285, 286), (286, 287),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator kagomeBtorus --Nx 6 --Ny 6 --Nz 1
     "kagomeBtorus108_6x6": [
     (0, 1), (0, 2), (0, 16), (0, 92), (1, 2), (1, 3), (1, 95), (2, 18),
     (2, 34), (3, 4), (3, 5), (3, 95), (4, 5), (4, 6), (4, 98), (5, 19),
@@ -916,7 +916,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
     (100, 102), (102, 103), (102, 104), (103, 104), (103, 105), (105, 106), (105, 107), (106, 107),
     ],
     # Reproduce exactly:
-    # python3 -m vmps_geometry.cluster_generator kagomeBtorus --Nx 4 --Ny 4 --Nz 1
+    # python3 -m lattice_in_line.cluster_generator kagomeBtorus --Nx 4 --Ny 4 --Nz 1
     "kagomeBtorus48_4x4": [
     (0, 1), (0, 2), (0, 10), (0, 38), (1, 2), (1, 3), (1, 41), (2, 12),
     (2, 22), (3, 4), (3, 5), (3, 41), (4, 5), (4, 6), (4, 44), (5, 13),

@@ -1,3 +1,3 @@
 """Internal package for the bandwidth certifier, split out of the former
 bandwidth_certifier.py monolith. The public CLI/entry point is unchanged
-(vmps_geometry.bandwidth_certifier)."""
+(lattice_in_line.bandwidth_certifier)."""

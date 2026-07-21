@@ -35,7 +35,7 @@ The ordering routines and metric helpers are reused from
 qubo/bandwidth_classical_compare.py where they already exist.
 
 Usage:
-  python -m vmps_geometry.bandwidth_heuristics_benchmark            # all graphs
+  python -m lattice_in_line.bandwidth_heuristics_benchmark            # all graphs
   vmps-bandwidth-benchmark --graphs pyrochlore --summary-only
   vmps-bandwidth-benchmark --csv bench.csv --sort bandwidth
 """

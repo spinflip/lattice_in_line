@@ -2,8 +2,8 @@
 edgelist output round-trip consistently."""
 import pytest
 
-import vmps_geometry.bandwidth_certifier as bc
-import vmps_geometry.cluster_generator as cg
+import lattice_in_line.bandwidth_certifier as bc
+import lattice_in_line.cluster_generator as cg
 
 
 def test_load_edge_file_indexed_parsing(tmp_path):

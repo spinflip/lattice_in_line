@@ -13,7 +13,7 @@ neighbour graph matches cluster_edges.py exactly, so the emitted NNN tables are
 guaranteed index-compatible with the J1 tables.
 
 Re-run after changing cluster_edges.py or the generator:
-    python -m vmps_geometry.build_cluster_edges_NNN
+    python -m lattice_in_line.build_cluster_edges_NNN
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-try:  # works when run as a module: python -m vmps_geometry.build_cluster_edges_NNN
+try:  # works when run as a module: python -m lattice_in_line.build_cluster_edges_NNN
     from . import cluster_generator as cg
     from .cluster_edges import CLUSTER_EDGES as NN
 except ImportError:  # also allow running as a plain script: python build_cluster_edges_NNN.py
@@ -116,7 +116,7 @@ def render_module(tables: Dict[str, List[Edge]],
         "CLUSTER_EDGES[name] (J2) form a consistent J1/J2 pair.",
         "",
         "GENERATED FILE — do not edit by hand. Regenerate with:",
-        "    python -m vmps_geometry.build_cluster_edges_NNN",
+        "    python -m lattice_in_line.build_cluster_edges_NNN",
         '"""',
         "from __future__ import annotations",
         "",

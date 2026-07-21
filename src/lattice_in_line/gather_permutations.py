@@ -15,7 +15,7 @@ Usage:
   vmps-gather-permutations                       # cutwidth, ~/vmps_geometry_data -> stdout
   vmps-gather-permutations --mode bw --out permutations_bw_gathered.py
   vmps-gather-permutations --data-dir /path/to/vmps_geometry_data --mode cw \
-      --out src/vmps_geometry/permutations_sat_cw.py
+      --out src/lattice_in_line/permutations_sat_cw.py
 
 Stats are computed from cluster_edges.py, so a run whose cluster is not in
 CLUSTER_EDGES is still emitted (permutation only, stats noted as unavailable).

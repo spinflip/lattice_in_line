@@ -1,5 +1,5 @@
 """Certifier state round-trip and lex-state independence (no solver needed)."""
-import vmps_geometry.bandwidth_certifier as bc
+import lattice_in_line.bandwidth_certifier as bc
 
 
 def test_state_records_best_ub_and_lower_bound(tmp_path):

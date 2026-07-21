@@ -1,10 +1,10 @@
 """Fast, solver-free unit tests for the core pure-Python routines."""
 import numpy as np
 
-import vmps_geometry.bandwidth_certifier as bc
-import vmps_geometry.cluster_graphs as cgraphs
-import vmps_geometry.cluster_generator as cg
-import vmps_geometry.fiedler_ordering as fo
+import lattice_in_line.bandwidth_certifier as bc
+import lattice_in_line.cluster_graphs as cgraphs
+import lattice_in_line.cluster_generator as cg
+import lattice_in_line.fiedler_ordering as fo
 
 
 def test_neighbor_shell_edges_square_shells():
@@ -219,7 +219,7 @@ def test_lex_heuristic_exits_early_when_cap_certified(tmp_path, monkeypatch):
 
 
 def test_bandwidth_heuristics_valid_and_optimal_on_path():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
     n = 20
     path = [(i, i + 1) for i in range(n - 1)]
     for name, fn in bhb.ALGORITHMS.items():
@@ -230,7 +230,7 @@ def test_bandwidth_heuristics_valid_and_optimal_on_path():
 
 
 def test_bandwidth_heuristics_handle_disconnected():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
     # two disjoint triangles
     edges = [(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]
     for name, fn in bhb.ALGORITHMS.items():
@@ -239,8 +239,8 @@ def test_bandwidth_heuristics_handle_disconnected():
 
 
 def test_cm_rcm_reversal_invariance_and_profile():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
+    from lattice_in_line.cluster_edges import CLUSTER_EDGES
     _, edges = bhb.normalize_edges(CLUSTER_EDGES["pyrochlore64"])
     cm = bhb.cuthill_mckee_ordering(edges)
     rcm = bhb.reverse_cuthill_mckee_ordering(edges)
@@ -253,14 +253,14 @@ def test_cm_rcm_reversal_invariance_and_profile():
 
 
 def test_compute_profile_known_value():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
     path = [(0, 1), (1, 2), (2, 3)]
     assert bhb.compute_profile(path, [0, 1, 2, 3]) == 3      # each left-reach = 1
 
 
 def test_compute_cutwidth_path_cycle_and_bound():
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
+    from lattice_in_line.cluster_edges import CLUSTER_EDGES
     path = [(i, i + 1) for i in range(9)]           # 10-node path
     assert bhb.compute_cutwidth(path, list(range(10))) == 1
     cyc = [(i, (i + 1) % 10) for i in range(10)]    # 10-cycle
@@ -310,8 +310,8 @@ def test_cutwidth_of_path_and_cycle():
 def test_cutwidth_math_lb_is_valid_lower_bound():
     import itertools
     import random
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
+    from lattice_in_line.cluster_edges import CLUSTER_EDGES
     # certified optima from the cutwidth campaigns: LB must never exceed them
     for g, copt in (("C12", 5), ("C20", 7), ("icosidodeca", 12)):
         _nodes, edges = bhb.normalize_edges(CLUSTER_EDGES[g])
@@ -356,7 +356,7 @@ def test_sa_cutwidth_returns_valid_permutation_and_optimal_path():
 # ----- bandwidth<->cutwidth correlation script -----
 
 def test_correlation_pearson_spearman_match_numpy():
-    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    import lattice_in_line.bandwidth_cutwidth_correlation as bcc
     rng = np.random.default_rng(0)
     x = rng.normal(size=50)
     y = 2.0 * x + rng.normal(scale=0.3, size=50)          # strong linear
@@ -371,14 +371,14 @@ def test_correlation_pearson_spearman_match_numpy():
 
 
 def test_correlation_rankdata_handles_ties():
-    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    import lattice_in_line.bandwidth_cutwidth_correlation as bcc
     r = bcc._rankdata(np.array([10.0, 10.0, 20.0, 5.0]))
     # two 10s share rank (0+1)/2 = 0.5; 5 is rank 0-> wait lowest gets 0
     assert list(r) == [1.5, 1.5, 3.0, 0.0]
 
 
 def test_correlation_collect_points_shapes():
-    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    import lattice_in_line.bandwidth_cutwidth_correlation as bcc
     names = ["C12", "C20"]
     algs = ["identity", "cm", "rcm"]
     # heuristics only: one point per (graph, algorithm)
@@ -393,8 +393,8 @@ def test_correlation_collect_points_shapes():
 
 
 def test_correlation_includes_optimized_sources():
-    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
-    from vmps_geometry.permutations_sat_bw import CUSTOM_PERMUTATIONS as SAT
+    import lattice_in_line.bandwidth_cutwidth_correlation as bcc
+    from lattice_in_line.permutations_sat_bw import CUSTOM_PERMUTATIONS as SAT
     # C12 has a SAT-certified ordering -> a 'sat' category point must appear,
     # and adding sources can only lower (never raise) the per-graph best-of.
     assert "C12" in SAT
@@ -408,7 +408,7 @@ def test_correlation_includes_optimized_sources():
 
 
 def test_correlation_perm_to_ordering_roundtrip():
-    import vmps_geometry.bandwidth_cutwidth_correlation as bcc
+    import lattice_in_line.bandwidth_cutwidth_correlation as bcc
     verts = [0, 1, 2, 3]
     assert bcc._perm_to_ordering({0: 2, 1: 0, 2: 3, 3: 1}, verts) == [1, 3, 0, 2]
     assert bcc._perm_to_ordering({0: 0, 1: 1}, verts) is None          # wrong size
@@ -418,8 +418,8 @@ def test_correlation_perm_to_ordering_roundtrip():
 def test_cw_polish_holds_cutwidth_and_minimizes_range():
     import pytest
     pytest.importorskip("ortools")
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
+    from lattice_in_line.cluster_edges import CLUSTER_EDGES
     _nodes, E = bhb.normalize_edges(CLUSTER_EDGES["C12"])
     n = 12
     ident = list(range(1, n + 1))
@@ -435,9 +435,9 @@ def test_cw_polish_holds_cutwidth_and_minimizes_range():
 
 def test_gather_permutations_builds_map(tmp_path):
     import json
-    import vmps_geometry.gather_permutations as gp
-    import vmps_geometry.bandwidth_heuristics_benchmark as bhb
-    from vmps_geometry.cluster_edges import CLUSTER_EDGES
+    import lattice_in_line.gather_permutations as gp
+    import lattice_in_line.bandwidth_heuristics_benchmark as bhb
+    from lattice_in_line.cluster_edges import CLUSTER_EDGES
     _v, E = bhb.normalize_edges(CLUSTER_EDGES["C12"])
     n = 12
     lab = list(range(1, n + 1))                      # identity, 1-based
@@ -460,7 +460,7 @@ def test_gather_permutations_builds_map(tmp_path):
 
 
 def test_analyze_mpo_parse_and_correlate():
-    import vmps_geometry.analyze_mpo_correlation as amc
+    import lattice_in_line.analyze_mpo_correlation as amc
     p = amc._default_file("permutations_sat_bw.py")         # tracked, stable
     recs = amc.parse_file(p, "bw")
     assert len(recs) > 20
