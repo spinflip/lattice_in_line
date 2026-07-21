@@ -37,7 +37,7 @@ if [ -z "$J1" ]; then
 fi
 
 # Output root; override with DATA_DIR=/path ./certify_lex_large.sh <J1> [J2]
-DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
 args=("$J1")

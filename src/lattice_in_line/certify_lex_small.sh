@@ -37,7 +37,7 @@ else
 fi
 
 # Output root; override with DATA_DIR=/path ./certify_lex_small.sh ...
-DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
 # small-cluster defaults (overridable from the environment)

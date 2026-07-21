@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 gather_permutations.py — collect the layouts a certification campaign produced in
-a vmps_geometry_data folder into a CUSTOM_PERMUTATIONS map, in the same format as
+a lattice_in_line_data folder into a CUSTOM_PERMUTATIONS map, in the same format as
 permutations_sat_bw.py / permutations_sat_cw.py.
 
 It scans the per-cluster run directories a campaign writes:
@@ -12,9 +12,9 @@ and annotates every entry with the layout's bandwidth / avg_range / cutwidth plu
 whether the objective is certified optimal or just a heuristic upper bound.
 
 Usage:
-  vmps-gather-permutations                       # cutwidth, ~/vmps_geometry_data -> stdout
-  vmps-gather-permutations --mode bw --out permutations_bw_gathered.py
-  vmps-gather-permutations --data-dir /path/to/vmps_geometry_data --mode cw \
+  lil-gather-permutations                        # cutwidth, ~/lattice_in_line_data -> stdout
+  lil-gather-permutations --mode bw --out permutations_bw_gathered.py
+  lil-gather-permutations --data-dir /path/to/lattice_in_line_data --mode cw \
       --out src/lattice_in_line/permutations_sat_cw.py
 
 Stats are computed from cluster_edges.py, so a run whose cluster is not in
@@ -136,8 +136,8 @@ def main() -> None:
                          "(bw_run_*)   (default: cw)")
     ap.add_argument("--data-dir",
                     default=os.path.join(os.path.expanduser("~"),
-                                         "vmps_geometry_data"),
-                    help="the vmps_geometry_data folder to scan")
+                                         "lattice_in_line_data"),
+                    help="the lattice_in_line_data folder to scan")
     ap.add_argument("--out", default=None,
                     help="output .py file (default: stdout)")
     args = ap.parse_args()

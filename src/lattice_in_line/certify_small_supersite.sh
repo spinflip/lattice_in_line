@@ -47,7 +47,7 @@ else
 fi
 
 # Output root; override with DATA_DIR=/path ./certify_small_supersite.sh ...
-DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
 # timeouts shared by every cluster in the batch (single source, threaded below)

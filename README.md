@@ -62,7 +62,7 @@ lil-cluster-generator garnet --Nx 2 --Ny 2 --Nz 2 --neighbor-shell 2 --format ed
 Proofs come at three strengths, all tracked in the state file: `math` (combinatorial
 bounds), `cpsat` (CP-SAT verdict), `drat` (external SAT solver UNSAT + DRAT proof).
 
-State lives under **`~/vmps_geometry_data/`** by convention (one JSON per cluster in
+State lives under **`~/lattice_in_line_data/`** by convention (one JSON per cluster in
 `bw_run_<cluster>/`, campaign logs alongside). All subcommands merge into the state
 file under a lock, so many jobs can run in parallel across seeds / k-values / machines.
 

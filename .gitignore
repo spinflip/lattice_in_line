@@ -14,12 +14,12 @@ IMPROVEMENTS.md
 # permutation tables: only the stratified canonical dumps are tracked
 # (bandwidth-QUBO, bandwidth-SAT, cutwidth-SAT); all other permutations*.py
 # (legacy, misc, experimental variants) stay local.
-src/vmps_geometry/permutations*.py
-!src/vmps_geometry/permutations_qubo_bw.py
-!src/vmps_geometry/permutations_sat_bw.py
-!src/vmps_geometry/permutations_sat_cw.py
+src/lattice_in_line/permutations*.py
+!src/lattice_in_line/permutations_qubo_bw.py
+!src/lattice_in_line/permutations_sat_bw.py
+!src/lattice_in_line/permutations_sat_cw.py
 
 # compiled QUBO C++ solvers (build artifacts of qubo/cpp)
-src/vmps_geometry/qubo/cpp/bandwidth_qubo_tsq_cpp
-src/vmps_geometry/qubo/cpp/bandwidth_classical_compare_cpp
-src/vmps_geometry/qubo/cpp/*.dSYM/
+src/lattice_in_line/qubo/cpp/bandwidth_qubo_tsq_cpp
+src/lattice_in_line/qubo/cpp/bandwidth_classical_compare_cpp
+src/lattice_in_line/qubo/cpp/*.dSYM/

@@ -18,7 +18,7 @@ else
 fi
 
 # Output root; override with DATA_DIR=/path ./certify_small.sh [clusters...]
-DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
 # MODE (plain|ss|cutwidth) is inherited by the env calls below; tag the per-

@@ -72,9 +72,8 @@ def resolve_geometry_path(path) -> Path:
         if matched is not None:
             return matched
     parts = raw.parts
-    # accept a package-dir prefix and resolve the tail against this package;
-    # "vmps_geometry"/"geometry" are legacy names kept for old path strings.
-    for prefix in ("lattice_in_line", "vmps_geometry", "geometry"):
+    # Accept a package-dir prefix and resolve the tail against this package.
+    for prefix in ("lattice_in_line", "geometry"):
         if prefix in parts:
             idx = parts.index(prefix)
             matched = _match(base.joinpath(*parts[idx + 1:]))

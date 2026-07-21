@@ -10,7 +10,7 @@ if [ -z "$CLUSTER" ]; then
 fi
 
 # Output root; override with DATA_DIR=/path ./certify_large.sh <cluster>
-DATA_DIR="${DATA_DIR:-$HOME/vmps_geometry_data}"
+DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
 # MODE (plain|ss|cutwidth) is inherited by env below; tag the launcher log so a
