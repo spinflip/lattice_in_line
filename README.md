@@ -131,18 +131,17 @@ for spin-1/2 `<S_i·S_j>` — FM pairs correctly get ~0 weight), or `mi` (input 
 mutual information). `--refine` adds a local-search polish; `--objective` picks weighted
 bandwidth vs. cutwidth.
 
-## The NNN (next-nearest-neighbour) tables
+## Regenerating the NNN tables
 
-`cluster_edges_NNN.py` is a **generated artifact** — it is not shipped in the repo.
-Build it on demand from `cluster_edges.py` + the generator:
+`cluster_edges_NNN.py` is generated from `cluster_edges.py` + the generator and kept in
+the repo (the lexicographic J1→J2 mode reads it as its default J2 source). After changing
+either input, regenerate and commit:
 
 ```bash
-lil-build-nnn-tables         # writes src/lattice_in_line/cluster_edges_NNN.py
+lil-build-nnn-tables         # rewrites src/lattice_in_line/cluster_edges_NNN.py
 ```
 
-The lexicographic J1→J2 mode reads this table as its default J2 source, so build it
-once before running lex campaigns (or pass an explicit `--j2-file`). CI smoke-tests
-the generator on every run.
+CI regenerates and diffs it, so the committed table can never drift from the generator.
 
 ## QUBO track (experimental)
 

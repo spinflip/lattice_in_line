@@ -1,17 +1,8 @@
 """cluster_edges_NNN.py invariants: every NNN table shares numbering with its
-J1 (cluster_edges.py) entry, stays in range, and molecular clusters are absent.
-
-The NNN table is a generated artifact (vmps-build-nnn-tables) and is not
-shipped; these invariant checks run only when a generated table is present."""
-import pytest
-
+J1 (cluster_edges.py) entry, stays in range, and molecular clusters are absent."""
 import lattice_in_line.build_cluster_edges_NNN as builder
 from lattice_in_line.cluster_edges import CLUSTER_EDGES as NN
-
-NNN = pytest.importorskip(
-    "lattice_in_line.cluster_edges_NNN",
-    reason="cluster_edges_NNN.py not generated (run vmps-build-nnn-tables)",
-).CLUSTER_EDGES
+from lattice_in_line.cluster_edges_NNN import CLUSTER_EDGES as NNN
 
 
 def _canon(edges):
