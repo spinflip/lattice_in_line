@@ -89,11 +89,7 @@ def compute_bandwidth(edges: EdgeList, ordering: List[int]) -> int:
 
 
 def compute_avg_range(edges: EdgeList, ordering: List[int]) -> float:
-    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range.
-
-    Historically called "envelope" here -- not to be confused with the classic
-    sparse-matrix envelope/profile (sum of per-row bandwidths).
-    """
+    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range."""
     _, normalized = normalize_edges(edges)
     position = {v: i for i, v in enumerate(ordering)}
 
@@ -107,8 +103,23 @@ def compute_avg_range(edges: EdgeList, ordering: List[int]) -> float:
     return total / len(normalized)
 
 
-# Deprecated alias (pre-rename name).
-compute_envelope = compute_avg_range
+def compute_cutwidth(edges: EdgeList, ordering: List[int]) -> int:
+    """Max number of edges crossing any chain cut (+1/-1 sweep)."""
+    _, normalized = normalize_edges(edges)
+    if not normalized:
+        return 0
+    position = {v: i for i, v in enumerate(ordering)}
+    n = len(ordering)
+    load = [0] * (n + 1)
+    for u, v in normalized:
+        a, b = sorted((position[u], position[v]))
+        load[a] += 1
+        load[b] -= 1
+    cur = mx = 0
+    for pos in range(n - 1):
+        cur += load[pos]
+        mx = max(mx, cur)
+    return mx
 
 
 def ordering_to_position(ordering: List[int]) -> Dict[int, int]:
@@ -808,7 +819,8 @@ def print_result(result: BandwidthAlgorithmResult, edges: EdgeList) -> None:
     print(f"algorithm: {result.name}")
     print(f"ordering, position -> vertex: {result.ordering}")
     print(f"position, vertex -> position: {result.position}")
-    print(f"bandwidth: {result.bandwidth} (avg_range: {compute_avg_range(edges, result.ordering):.6g})")
+    print(f"bandwidth: {result.bandwidth} (cutwidth: {compute_cutwidth(edges, result.ordering)}, "
+          f"avg_range: {compute_avg_range(edges, result.ordering):.6g})")
     print(f"optimal: {result.optimal}")
     print(f"elapsed_s: {result.elapsed_s:.6f}")
     print(f"nodes_searched: {result.nodes_searched}")
@@ -822,15 +834,16 @@ def print_summary_table(results: List[BandwidthAlgorithmResult], edges: EdgeList
     print("=" * 100)
     print("summary")
     print("=" * 100)
-    print(f"{'algorithm':36s} {'bw':>5s} {'env':>9s} {'optimal':>8s} {'time_s':>12s} {'nodes':>12s} note")
+    print(f"{'algorithm':36s} {'bw':>5s} {'cut':>5s} {'avg_range':>10s} {'optimal':>8s} {'time_s':>12s} {'nodes':>12s} note")
     print("-" * 100)
 
     for r in sorted(results, key=lambda x: (x.bandwidth, x.elapsed_s, x.name)):
-        env = compute_avg_range(edges, r.ordering)
+        avg_range = compute_avg_range(edges, r.ordering)
         print(
             f"{r.name:36s} "
             f"{r.bandwidth:5d} "
-            f"{env:9.6g} "
+            f"{compute_cutwidth(edges, r.ordering):5d} "
+            f"{avg_range:10.6g} "
             f"{str(r.optimal):>8s} "
             f"{r.elapsed_s:12.6f} "
             f"{r.nodes_searched:12d} "
@@ -876,13 +889,15 @@ def main() -> None:
     print(
         "original ordering bandwidth: "
         f"{compute_bandwidth(normalized_edges, original_order)} "
-        f"(avg_range: {compute_avg_range(normalized_edges, original_order):.6g})"
+        f"(cutwidth: {compute_cutwidth(normalized_edges, original_order)}, "
+        f"avg_range: {compute_avg_range(normalized_edges, original_order):.6g})"
     )
     best_heur = best_heuristic_ordering(normalized_edges)
     print(
         "best heuristic upper bound: "
         f"{compute_bandwidth(normalized_edges, best_heur)} "
-        f"(avg_range: {compute_avg_range(normalized_edges, best_heur):.6g})"
+        f"(cutwidth: {compute_cutwidth(normalized_edges, best_heur)}, "
+        f"avg_range: {compute_avg_range(normalized_edges, best_heur):.6g})"
     )
 
     if args.algorithm == "all":

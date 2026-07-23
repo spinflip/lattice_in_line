@@ -212,13 +212,31 @@ static int compute_bandwidth(const EdgeList& edges, const std::vector<int>& posi
   return bw;
 }
 
-static double compute_envelope(const EdgeList& edges, const std::vector<int>& position) {
+static double compute_avg_range(const EdgeList& edges, const std::vector<int>& position) {
   if (edges.empty()) return 0.0;
   double total = 0.0;
   for (const auto& [u, v] : edges) {
     total += std::abs(position[u] - position[v]);
   }
   return total / static_cast<double>(edges.size());
+}
+
+static int compute_cutwidth(const EdgeList& edges, const std::vector<int>& position) {
+  if (edges.empty()) return 0;
+  int n = static_cast<int>(position.size());
+  std::vector<int> load(n + 1, 0);          // +1/-1 sweep over cut positions
+  for (const auto& [u, v] : edges) {
+    int a = std::min(position[u], position[v]);
+    int b = std::max(position[u], position[v]);
+    load[a] += 1;
+    load[b] -= 1;
+  }
+  int cur = 0, mx = 0;
+  for (int p = 0; p + 1 < n; ++p) {
+    cur += load[p];
+    mx = std::max(mx, cur);
+  }
+  return mx;
 }
 
 static std::vector<int> ordering_to_position(const std::vector<int>& ordering) {
@@ -667,9 +685,11 @@ static void print_result(const Result& result, const EdgeList& edges) {
   std::vector<int> original_position(result.position.size());
   std::iota(original_position.begin(), original_position.end(), 0);
   int original_bw = compute_bandwidth(edges, original_position);
-  double original_env = compute_envelope(edges, original_position);
+  int original_cw = compute_cutwidth(edges, original_position);
+  double original_avg = compute_avg_range(edges, original_position);
   int recomputed_bw = compute_bandwidth(edges, result.position);
-  double recomputed_env = compute_envelope(edges, result.position);
+  int recomputed_cw = compute_cutwidth(edges, result.position);
+  double recomputed_avg = compute_avg_range(edges, result.position);
 
   std::cout << "method: " << result.method << "\n";
   std::cout << "old vertex -> assigned position: {";
@@ -678,10 +698,12 @@ static void print_result(const Result& result, const EdgeList& edges) {
     std::cout << i << ": " << result.position[i];
   }
   std::cout << "}\n";
-  std::cout << "bandwidth: " << recomputed_bw << " (envelope: " << std::setprecision(6) << recomputed_env << ")\n";
+  std::cout << "bandwidth: " << recomputed_bw << " (cutwidth: " << recomputed_cw
+            << ", avg_range: " << std::setprecision(6) << recomputed_avg << ")\n";
   std::cout << "bandwidth change vs original ordering: " << std::showpos
             << (recomputed_bw - original_bw) << std::noshowpos << " (original: " << original_bw
-            << ", envelope: " << std::setprecision(6) << original_env << ")\n";
+            << ", cutwidth: " << original_cw
+            << ", avg_range: " << std::setprecision(6) << original_avg << ")\n";
   std::cout << "energy: " << std::setprecision(8) << result.energy << "\n";
   std::cout << "valid permutation from solver: " << (result.feasible_permutation ? "true" : "false")
             << "\n";
@@ -785,7 +807,8 @@ int main(int argc, char** argv) {
     std::vector<int> original_position(n);
     std::iota(original_position.begin(), original_position.end(), 0);
     std::cout << "original ordering bandwidth: " << compute_bandwidth(graph.edges, original_position)
-              << " (envelope: " << std::setprecision(6) << compute_envelope(graph.edges, original_position) << ")\n";
+              << " (cutwidth: " << compute_cutwidth(graph.edges, original_position)
+              << ", avg_range: " << std::setprecision(6) << compute_avg_range(graph.edges, original_position) << ")\n";
 
     if (opt.rcm) {
       auto rcm_order = reverse_cuthill_mckee_ordering(n, graph.edges);
@@ -805,7 +828,8 @@ int main(int argc, char** argv) {
         std::cout << i << ": " << rcm_pos[i];
       }
       std::cout << "}\n";
-      std::cout << "bandwidth: " << rcm_bw << " (envelope: " << std::setprecision(6) << compute_envelope(graph.edges, rcm_pos) << ")\n";
+      std::cout << "bandwidth: " << rcm_bw << " (cutwidth: " << compute_cutwidth(graph.edges, rcm_pos)
+                << ", avg_range: " << std::setprecision(6) << compute_avg_range(graph.edges, rcm_pos) << ")\n";
     }
 
     std::vector<std::string> methods =

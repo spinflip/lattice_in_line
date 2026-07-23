@@ -362,11 +362,7 @@ def compute_bandwidth(edges: EdgeList, position: Dict[int, int]) -> int:
 
 
 def compute_avg_range(edges: EdgeList, position: Dict[int, int]) -> float:
-    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range.
-
-    Historically called "envelope" here -- not to be confused with the classic
-    sparse-matrix envelope/profile (sum of per-row bandwidths).
-    """
+    """Mean edge length (MinLA cost / |E|), i.e. the average interaction range."""
     _, normalized_edges = normalize_edges(edges)
 
     if not normalized_edges:
@@ -379,8 +375,23 @@ def compute_avg_range(edges: EdgeList, position: Dict[int, int]) -> float:
     return total / len(normalized_edges)
 
 
-# Deprecated alias (pre-rename name).
-compute_envelope = compute_avg_range
+
+def compute_cutwidth(edges: EdgeList, position: Dict[int, int]) -> int:
+    """Max number of edges crossing any chain cut (+1/-1 sweep)."""
+    _, normalized_edges = normalize_edges(edges)
+    if not normalized_edges:
+        return 0
+    n = 1 + max(max(position[u], position[v]) for u, v in normalized_edges)
+    load = [0] * (n + 1)
+    for u, v in normalized_edges:
+        a, b = sorted((position[u], position[v]))
+        load[a] += 1
+        load[b] -= 1
+    cur = mx = 0
+    for pos in range(n - 1):
+        cur += load[pos]
+        mx = max(mx, cur)
+    return mx
 
 
 def bandwidth_lower_bound(edges: EdgeList) -> int:
@@ -1228,15 +1239,19 @@ def print_result(
     original_position = {v: v for v in vertices}
     original_bandwidth = compute_bandwidth(normalized_edges, original_position)
     original_avg_range = compute_avg_range(normalized_edges, original_position)
+    original_cutwidth = compute_cutwidth(normalized_edges, original_position)
     recomputed_bandwidth = compute_bandwidth(edges, result.position)
     recomputed_avg_range = compute_avg_range(edges, result.position)
+    recomputed_cutwidth = compute_cutwidth(edges, result.position)
     print(f"method: {result.method}")
     print(f"old vertex -> assigned position: {result.position}")
-    print(f"bandwidth: {recomputed_bandwidth} (avg_range: {recomputed_avg_range:.6g})")
+    print(f"bandwidth: {recomputed_bandwidth} (cutwidth: {recomputed_cutwidth}, "
+          f"avg_range: {recomputed_avg_range:.6g})")
     print(
         "bandwidth change vs original ordering: "
         f"{recomputed_bandwidth - original_bandwidth:+d} "
-        f"(original: {original_bandwidth}, avg_range: {original_avg_range:.6g})"
+        f"(original: {original_bandwidth}, cutwidth: {original_cutwidth}, "
+        f"avg_range: {original_avg_range:.6g})"
     )
     print(f"energy: {result.energy:.6g}")
     print(f"valid permutation from solver: {result.feasible_permutation}")
@@ -1316,7 +1331,8 @@ def main() -> None:
         print(
             "original ordering bandwidth: "
             f"{compute_bandwidth(normalized_edges, original_position)} "
-            f"(avg_range: {compute_avg_range(normalized_edges, original_position):.6g})"
+            f"(cutwidth: {compute_cutwidth(normalized_edges, original_position)}, "
+            f"avg_range: {compute_avg_range(normalized_edges, original_position):.6g})"
         )
         print(f"implementation: python")
         print(f"backend: {args.backend}")
@@ -1333,7 +1349,8 @@ def main() -> None:
 
             print(f"ordering, position -> vertex: {rcm_order}")
             print(f"position, vertex -> position: {rcm_pos}")
-            print(f"bandwidth: {rcm_bw} (avg_range: {compute_avg_range(normalized_edges, rcm_pos):.6g})")
+            print(f"bandwidth: {rcm_bw} (cutwidth: {compute_cutwidth(normalized_edges, rcm_pos)}, "
+                  f"avg_range: {compute_avg_range(normalized_edges, rcm_pos):.6g})")
 
         except ImportError:
             print("scipy not installed; skipping RCM baseline")

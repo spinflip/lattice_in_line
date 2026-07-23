@@ -141,13 +141,33 @@ static int compute_bandwidth_from_ordering(const EdgeList& edges, const std::vec
   return best;
 }
 
-static double compute_envelope_from_ordering(const EdgeList& edges, const std::vector<int>& ordering) {
+static double compute_avg_range_from_ordering(const EdgeList& edges, const std::vector<int>& ordering) {
   std::vector<int> position(ordering.size(), -1);
   for (std::size_t i = 0; i < ordering.size(); ++i) position[ordering[i]] = static_cast<int>(i);
   if (edges.empty()) return 0.0;
   double total = 0.0;
   for (const auto& [u, v] : edges) total += std::abs(position[u] - position[v]);
   return total / static_cast<double>(edges.size());
+}
+
+static int compute_cutwidth_from_ordering(const EdgeList& edges, const std::vector<int>& ordering) {
+  if (edges.empty()) return 0;
+  int n = static_cast<int>(ordering.size());
+  std::vector<int> position(ordering.size(), -1);
+  for (std::size_t i = 0; i < ordering.size(); ++i) position[ordering[i]] = static_cast<int>(i);
+  std::vector<int> load(n + 1, 0);
+  for (const auto& [u, v] : edges) {
+    int a = std::min(position[u], position[v]);
+    int b = std::max(position[u], position[v]);
+    load[a] += 1;
+    load[b] -= 1;
+  }
+  int cur = 0, mx = 0;
+  for (int p = 0; p + 1 < n; ++p) {
+    cur += load[p];
+    mx = std::max(mx, cur);
+  }
+  return mx;
 }
 
 static std::vector<int> ordering_to_position(const std::vector<int>& ordering) {
@@ -688,7 +708,8 @@ static void print_result(const BandwidthAlgorithmResult& result, const EdgeList&
   }
   std::cout << "}\n";
   std::cout << "bandwidth: " << result.bandwidth
-            << " (envelope: " << std::setprecision(6) << compute_envelope_from_ordering(edges, result.ordering) << ")\n";
+            << " (cutwidth: " << compute_cutwidth_from_ordering(edges, result.ordering)
+            << ", avg_range: " << std::setprecision(6) << compute_avg_range_from_ordering(edges, result.ordering) << ")\n";
   std::cout << "optimal: " << (result.optimal ? "True" : "False") << "\n";
   std::cout << "elapsed_s: " << std::fixed << std::setprecision(6) << result.elapsed_s << "\n";
   std::cout << "nodes_searched: " << result.nodes_searched << "\n";
@@ -702,7 +723,8 @@ static void print_summary_table(const std::vector<BandwidthAlgorithmResult>& res
   std::cout << std::string(100, '=') << "\n";
   std::cout << std::left << std::setw(36) << "algorithm"
             << std::right << std::setw(5) << "bw"
-            << std::setw(9) << "env"
+            << std::setw(5) << "cut"
+            << std::setw(11) << "avg_range"
             << std::setw(9) << "optimal"
             << std::setw(13) << "time_s"
             << std::setw(13) << "nodes"
@@ -717,7 +739,8 @@ static void print_summary_table(const std::vector<BandwidthAlgorithmResult>& res
   for (const auto& r : sorted) {
     std::cout << std::left << std::setw(36) << r.name
               << std::right << std::setw(5) << r.bandwidth
-              << std::setw(9) << std::setprecision(6) << compute_envelope_from_ordering(edges, r.ordering)
+              << std::setw(5) << compute_cutwidth_from_ordering(edges, r.ordering)
+              << std::setw(11) << std::setprecision(6) << compute_avg_range_from_ordering(edges, r.ordering)
               << std::setw(9) << (r.optimal ? "True" : "False")
               << std::setw(13) << std::fixed << std::setprecision(6) << r.elapsed_s
               << std::setw(13) << r.nodes_searched
@@ -780,11 +803,13 @@ int main(int argc, char** argv) {
     std::iota(original_order.begin(), original_order.end(), 0);
     std::cout << "original ordering bandwidth: "
               << compute_bandwidth_from_ordering(graph.edges, original_order)
-              << " (envelope: " << std::setprecision(6) << compute_envelope_from_ordering(graph.edges, original_order) << ")\n";
+              << " (cutwidth: " << compute_cutwidth_from_ordering(graph.edges, original_order)
+              << ", avg_range: " << std::setprecision(6) << compute_avg_range_from_ordering(graph.edges, original_order) << ")\n";
     auto best_heur = best_heuristic_ordering(graph.edges);
     std::cout << "best heuristic upper bound: "
               << compute_bandwidth_from_ordering(graph.edges, best_heur)
-              << " (envelope: " << std::setprecision(6) << compute_envelope_from_ordering(graph.edges, best_heur) << ")\n";
+              << " (cutwidth: " << compute_cutwidth_from_ordering(graph.edges, best_heur)
+              << ", avg_range: " << std::setprecision(6) << compute_avg_range_from_ordering(graph.edges, best_heur) << ")\n";
 
     std::vector<std::string> algorithms = opt.algorithm == "all"
                                               ? std::vector<std::string>{"rcm", "gps", "dcm", "dcm-perimeter", "sgs", "csg"}

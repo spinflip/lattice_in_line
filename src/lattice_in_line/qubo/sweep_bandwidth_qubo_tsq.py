@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 import subprocess
 import time
 from dataclasses import asdict, dataclass
@@ -89,18 +90,15 @@ def parse_bool(text: str) -> bool:
     raise ValueError(f"unexpected boolean value: {text!r}")
 
 
+_BANDWIDTH_LINE_RE = re.compile(
+    r"^bandwidth: (?P<bw>\d+) \((?:cutwidth: \d+, )?avg_range: (?P<avg>[0-9.eE+-]+)\)$")
+
+
 def parse_bandwidth_line(text: str) -> tuple[int, float]:
-    prefix = "bandwidth: "
-    if not text.startswith(prefix):
+    m = _BANDWIDTH_LINE_RE.match(text.strip())
+    if m is None:
         raise ValueError(f"unexpected bandwidth line: {text!r}")
-    body = text[len(prefix):]
-    # Current solver output says "avg_range:"; accept the pre-rename
-    # "envelope:" form too so old logs stay parseable.
-    for marker in (" (avg_range: ", " (envelope: "):
-        if marker in body:
-            bandwidth_text, avg_range_part = body.split(marker, maxsplit=1)
-            return int(bandwidth_text), float(avg_range_part[:-1])
-    raise ValueError(f"unexpected bandwidth line: {text!r}")
+    return int(m.group("bw")), float(m.group("avg"))
 
 
 def run_python_sweep(
