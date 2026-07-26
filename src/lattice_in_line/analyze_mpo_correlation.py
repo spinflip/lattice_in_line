@@ -388,7 +388,8 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     # The biggest range reductions in absolute terms (largest R_bw - R_cw):
     # one marker + prop-cycle colour each, named in a separate legend rather
     # than annotated on the plot.
-    cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    # skip the first prop-cycle colour: it is the blue of the ordinary points
+    cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"][1:]
     by_drop = sorted(pairs, key=lambda p: p[1] - p[2], reverse=True)
     highlight = {c: (cycle[i % len(cycle)], marker, c.split("_")[0])
                  for i, ((c, x, y), marker)
@@ -431,10 +432,6 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     ax.set_xlabel(r"avg. interaction range $R$  (bandwidth-optimal)")
     ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
     main_legend = ax.legend(handles=[
-        Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
-               markeredgecolor="k", label=r"$C$-opt shortens $R$"),
-        Line2D([], [], marker="D", color="w", markerfacecolor="crimson",
-               markeredgecolor="k", label=r"$C$-opt lengthens $R$"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label=r"$R_{cw} = R_{bw}$"),
     ], loc="upper left", framealpha=0.95)
     if cluster_handles:                    # names of the largest reductions
