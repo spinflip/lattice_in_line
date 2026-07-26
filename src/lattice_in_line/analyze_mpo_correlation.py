@@ -250,7 +250,8 @@ def plot_bonddim_bandwidth(recs: List[Dict], prefix: str) -> None:
     _save(fig, prefix, "bandwidth")
 
 
-def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
+def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
+                    log_scale: bool = True) -> None:
     plt = _plt()
     if plt is None:
         return
@@ -262,11 +263,12 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     fig, ax = plt.subplots(figsize=(9.5, 7.2))
     vals = [v for r in recs for v in (r["bandwidth"], r["cutwidth"])]
     lo, hi = min(vals) * 0.8, max(vals) * 1.25
-    # log-log: bandwidth spans 4..>200 while most clusters sit at 5..30, so a
-    # linear scale crushes them into the corner; log spreads them out and the
-    # C = B reference stays a straight line.
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    # log-log by default: bandwidth spans 4..>200 while most clusters sit at
+    # 5..30, so a linear scale crushes them into the corner; log spreads them
+    # out and the C = B reference stays a straight line. --linear overrides.
+    if log_scale:
+        ax.set_xscale("log")
+        ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     # Label the two highest-cutwidth orange (drop == 2) arrows only.
     orange_labeled = {
@@ -317,13 +319,21 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str) -> None:
     ], loc="lower right", framealpha=0.95)
     ax.set_xlabel(r"bandwidth $B$")
     ax.set_ylabel(r"cutwidth $C$")
-    ax.set_ylim(top=100)   # cap at 10^2 (highest cutwidth in the set is 76)
+    if log_scale:
+        ax.set_ylim(top=100)   # cap at 10^2 (highest cutwidth in the set is 76)
+    else:
+        # linear: keep the frame on the data instead of following the C = B
+        # diagonal up to max(bandwidth), which would leave the points squashed.
+        cut_hi = max(v for r in rows for v in (r["cut_bwopt"], r["cut_cwopt"]))
+        ax.set_ylim(0, cut_hi * 1.12)
+        ax.set_xlim(left=0)
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "divergence")
 
 
-def plot_avg_range(recs: List[Dict], prefix: str) -> None:
+def plot_avg_range(recs: List[Dict], prefix: str,
+                   log_scale: bool = True) -> None:
     """Paired comparison of the average interaction range R of the same cluster
     under its bandwidth-optimal vs its cutwidth-optimal layout. Points below the
     R_cw = R_bw diagonal are clusters where optimizing cutwidth also shortens the
@@ -374,8 +384,9 @@ def plot_avg_range(recs: List[Dict], prefix: str) -> None:
             ax.annotate(f"{label} (×{y / x:.2f})", (x, y), color="black",
                         fontsize=8, ha=ha, xytext=(dx, dy),
                         textcoords="offset points")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    if log_scale:
+        ax.set_xscale("log")
+        ax.set_yscale("log")
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
     ax.set_aspect("equal")
@@ -404,6 +415,9 @@ def main() -> None:
     ap.add_argument("--out-prefix", default=None,
                     help="output figure path prefix (default: plots/mpo)")
     ap.add_argument("--no-plot", action="store_true", help="skip the figures")
+    ap.add_argument("--linear", action="store_true",
+                    help="use linear axes for the divergence and avg-range "
+                         "scatter figures (default: log-log)")
     ap.add_argument("--exclude", default=",".join(DEFAULT_DIVERGENCE_EXCLUDE),
                     help="comma-separated clusters to drop from the divergence "
                          "figure (default: the quasi-1D hyperkagome variants; "
@@ -441,8 +455,9 @@ def main() -> None:
             print(f"[plot] writing figures under {os.path.dirname(args.out_prefix)}/ ...")
             plot_bonddim(recs, args.out_prefix)
             plot_bonddim_bandwidth(recs, args.out_prefix)
-            plot_divergence(recs, rows, args.out_prefix)
-            plot_avg_range(recs, args.out_prefix)
+            plot_divergence(recs, rows, args.out_prefix,
+                            log_scale=not args.linear)
+            plot_avg_range(recs, args.out_prefix, log_scale=not args.linear)
 
 
 if __name__ == "__main__":
