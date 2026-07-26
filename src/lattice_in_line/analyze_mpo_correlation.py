@@ -48,6 +48,11 @@ _MARK = {"bw": "o", "cw": "s"}
 _COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
 _LABEL = {"bw": "bandwidth-opt", "cw": "cutwidth-opt"}
 
+# distinct colours for the clusters with the largest absolute R reduction in
+# the avg-range figure (one each; the length of this tuple sets how many)
+_HIGHLIGHT_COLORS = ("tab:orange", "tab:green", "tab:purple", "gold",
+                     "tab:brown")
+
 # avg_range = average interaction range R = mean edge length (MinLA cost /
 # |E|). Old files serialized it as "envelope="; accept both.
 _RE_GEO = re.compile(
@@ -370,22 +375,21 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     lo = float(min(rb.min(), rc.min())) * 0.85
     hi = float(max(rb.max(), rc.max())) * 1.15
 
-    # The biggest range reductions at unchanged cutwidth: one colour each,
-    # named in a separate legend instead of annotated on the plot.
-    highlight = {
-        "hyperkagome324_3x3x3": ("tab:orange", "hyperkagome324"),
-        "hyperkagome96_2x2x2": ("tab:green", "hyperkagome96"),
-        "pyrochlore64": ("tab:purple", "pyrochlore64"),
-        "pyrochlore48a": ("gold", "pyrochlore48a"),
-    }
+    # The biggest range reductions in absolute terms (largest R_bw - R_cw):
+    # one colour each, named in a separate legend rather than on the plot.
+    by_drop = sorted(pairs, key=lambda p: p[1] - p[2], reverse=True)
+    highlight = {c: (color, c.split("_")[0])
+                 for (c, x, y), color in zip(by_drop, _HIGHLIGHT_COLORS)
+                 if x - y > 0}
     hl = np.array([c in highlight for c, _, _ in pairs])
 
     print(f"avg-range reductions (cutwidth-opt vs bandwidth-opt) over "
-          f"{len(pairs)} shared cluster(s):")
-    print(f"  {'cluster':26s}{'R (bw-opt)':>12s}{'R (cw-opt)':>12s}{'ratio':>8s}")
-    for c, x, y in sorted(pairs, key=lambda p: p[2] / p[1]):
+          f"{len(pairs)} shared cluster(s), largest absolute drop first:")
+    print(f"  {'cluster':26s}{'R (bw-opt)':>12s}{'R (cw-opt)':>12s}"
+          f"{'drop':>8s}{'ratio':>8s}")
+    for c, x, y in by_drop:
         flag = "  <- highlighted" if c in highlight else ""
-        print(f"  {c:26s}{x:12.2f}{y:12.2f}{y / x:8.2f}{flag}")
+        print(f"  {c:26s}{x:12.2f}{y:12.2f}{x - y:8.2f}{y / x:8.2f}{flag}")
 
     fig, ax = plt.subplots(figsize=(7.2, 6.6))
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
@@ -394,16 +398,16 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     ax.scatter(rb[~below], rc[~below], c="crimson", marker="D", s=48, zorder=3,
                edgecolors="black", linewidths=0.4)
     cluster_handles = []
-    for c, x, y in pairs:                            # highlighted, one by one
-        if c not in highlight or y >= x:
+    for c, x, y in by_drop:            # highlighted, largest drop first
+        if c not in highlight:
             continue
         color, label = highlight[c]
         ax.scatter([x], [y], c=color, s=64, zorder=4,
                    edgecolors="black", linewidths=0.5)
-        cluster_handles.append((y / x, Line2D(
+        cluster_handles.append(Line2D(
             [], [], marker="o", color="w", markerfacecolor=color,
-            markeredgecolor="k", label=f"{label} (×{y / x:.2f})")))
-    cluster_handles = [h for _, h in sorted(cluster_handles, key=lambda t: t[0])]
+            markeredgecolor="k",
+            label=f"{label} ($\\Delta R$={x - y:.2f})"))
     if log_scale:
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -422,7 +426,7 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     if cluster_handles:                    # names of the largest reductions
         ax.add_artist(main_legend)
         ax.legend(handles=cluster_handles, loc="lower right", framealpha=0.95,
-                  fontsize=10, title="largest $R$ reductions")
+                  fontsize=10, title="largest absolute $R$ reductions")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "avgrange")
