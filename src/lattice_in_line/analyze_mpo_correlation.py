@@ -48,10 +48,15 @@ _MARK = {"bw": "o", "cw": "s"}
 _COLOR = {"bw": "tab:blue", "cw": "tab:orange"}
 _LABEL = {"bw": "bandwidth-opt", "cw": "cutwidth-opt"}
 
-# distinct colours for the clusters with the largest absolute R reduction in
-# the avg-range figure (one each; the length of this tuple sets how many)
-_HIGHLIGHT_COLORS = ("tab:orange", "tab:green", "tab:purple", "gold",
-                     "tab:brown")
+# Markers for the clusters with the largest absolute R reduction in the
+# avg-range figure -- one each, deliberately neither the plain circle of the
+# other points nor the diamond of the "lengthens R" ones (the 4th prop-cycle
+# colour is red, which would then clone that marker); colours come from the
+# matplotlib prop cycle. The length of this tuple sets how many are highlighted.
+_HIGHLIGHT_MARKERS = ("s", "^", "v", "*", "P")
+
+# Dropped from the avg-range figure (and its table) by default.
+DEFAULT_AVGRANGE_EXCLUDE = ("squareTorus100_10x10",)
 
 # avg_range = average interaction range R = mean edge length (MinLA cost /
 # |E|). Old files serialized it as "envelope="; accept both.
@@ -363,8 +368,13 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     from matplotlib.lines import Line2D
     bwm = {r["cluster"]: r for r in recs if r["source"] == "bw" and "avg_range" in r}
     cwm = {r["cluster"]: r for r in recs if r["source"] == "cw" and "avg_range" in r}
+    shared = set(bwm) & set(cwm)
+    dropped = sorted(shared & set(DEFAULT_AVGRANGE_EXCLUDE))
     pairs = [(c, bwm[c]["avg_range"], cwm[c]["avg_range"])
-             for c in sorted(set(bwm) & set(cwm))]
+             for c in sorted(shared - set(DEFAULT_AVGRANGE_EXCLUDE))]
+    if dropped:
+        print(f"\n(excluded {len(dropped)} cluster(s) from the avg-range "
+              f"figure: {', '.join(dropped)})")
     if not pairs:
         print("[plot] no shared clusters with avg_range; skipping avg-range figure",
               file=sys.stderr)
@@ -376,10 +386,13 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     hi = float(max(rb.max(), rc.max())) * 1.15
 
     # The biggest range reductions in absolute terms (largest R_bw - R_cw):
-    # one colour each, named in a separate legend rather than on the plot.
+    # one marker + prop-cycle colour each, named in a separate legend rather
+    # than annotated on the plot.
+    cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     by_drop = sorted(pairs, key=lambda p: p[1] - p[2], reverse=True)
-    highlight = {c: (color, c.split("_")[0])
-                 for (c, x, y), color in zip(by_drop, _HIGHLIGHT_COLORS)
+    highlight = {c: (cycle[i % len(cycle)], marker, c.split("_")[0])
+                 for i, ((c, x, y), marker)
+                 in enumerate(zip(by_drop, _HIGHLIGHT_MARKERS))
                  if x - y > 0}
     hl = np.array([c in highlight for c, _, _ in pairs])
 
@@ -401,11 +414,12 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     for c, x, y in by_drop:            # highlighted, largest drop first
         if c not in highlight:
             continue
-        color, label = highlight[c]
-        ax.scatter([x], [y], c=color, s=64, zorder=4,
+        color, marker, label = highlight[c]
+        ax.scatter([x], [y], c=color, marker=marker,
+                   s=130 if marker == "*" else 72, zorder=4,
                    edgecolors="black", linewidths=0.5)
         cluster_handles.append(Line2D(
-            [], [], marker="o", color="w", markerfacecolor=color,
+            [], [], marker=marker, color="w", markerfacecolor=color,
             markeredgecolor="k",
             label=f"{label} ($\\Delta R$={x - y:.2f})"))
     if log_scale:
