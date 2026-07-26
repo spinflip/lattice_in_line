@@ -380,12 +380,12 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     }
     hl = np.array([c in highlight for c, _, _ in pairs])
 
-    print(f"largest avg-range reductions (cutwidth-opt vs bandwidth-opt) "
-          f"among {len(highlight)} highlighted cluster(s):")
+    print(f"avg-range reductions (cutwidth-opt vs bandwidth-opt) over "
+          f"{len(pairs)} shared cluster(s):")
     print(f"  {'cluster':26s}{'R (bw-opt)':>12s}{'R (cw-opt)':>12s}{'ratio':>8s}")
-    for c, x, y in sorted((p for p in pairs if p[0] in highlight),
-                          key=lambda p: p[2] / p[1]):
-        print(f"  {c:26s}{x:12.2f}{y:12.2f}{y / x:8.2f}")
+    for c, x, y in sorted(pairs, key=lambda p: p[2] / p[1]):
+        flag = "  <- highlighted" if c in highlight else ""
+        print(f"  {c:26s}{x:12.2f}{y:12.2f}{y / x:8.2f}{flag}")
 
     fig, ax = plt.subplots(figsize=(7.2, 6.6))
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
