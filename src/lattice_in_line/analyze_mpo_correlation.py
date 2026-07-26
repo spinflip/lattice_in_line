@@ -185,10 +185,11 @@ def _save(fig, prefix: str, name: str) -> None:
 
 
 def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
-           ylabel: str, xsym: str, ysym: str) -> None:
+           ylabel: str, xsym: str, ysym: str, pooled: bool = False) -> None:
     """Scatter ykey vs xkey coloured/marked by source, with a separate
     least-squares fit per layout family whose full linear law (ysym = a*xsym + b,
-    r) is printed in the legend. `xsym`/`ysym` are mathtext symbols (no $)."""
+    r) is printed in the legend. `xsym`/`ysym` are mathtext symbols (no $).
+    pooled=True adds a fit over both families combined."""
     from matplotlib.lines import Line2D
     x = np.array([r[xkey] for r in have], dtype=float)
     y = np.array([r[ykey] for r in have], dtype=float)
@@ -209,6 +210,16 @@ def _panel(ax, have: List[Dict], xkey: str, ykey: str, xlabel: str,
             lab = _LABEL[s]
         handles.append(Line2D([], [], color=_COLOR[s], marker=_MARK[s],
                               markeredgecolor="black", label=lab))
+    if pooled:
+        f = _linfit(x, y)
+        if f is not None:
+            a, b = f
+            xr = np.array([x.min(), x.max()])
+            ax.plot(xr, a * xr + b, color="black", ls="--", lw=1.8, zorder=2)
+            handles.append(Line2D(
+                [], [], color="black", ls="--",
+                label=f"pooled: ${ysym} = {a:.2f}\\,{xsym} {b:+.2f}$"
+                      f"  (r={pearson(x, y):.2f})"))
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.25)
@@ -245,7 +256,7 @@ def plot_bonddim_bandwidth(recs: List[Dict], prefix: str) -> None:
     fig, ax = plt.subplots(figsize=(7.6, 5.8))
     _panel(ax, have, "bandwidth", "daux_max", r"bandwidth $B$",
            r"peak MPO bond dim  $\chi_{\mathrm{max}}$",
-           "B", r"\chi_{\mathrm{max}}")
+           "B", r"\chi_{\mathrm{max}}", pooled=True)
     fig.tight_layout()
     _save(fig, prefix, "bandwidth")
 
@@ -270,6 +281,8 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
         ax.set_xscale("log")
         ax.set_yscale("log")
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
+    cut_hi = max(v for r in rows for v in (r["cut_bwopt"], r["cut_cwopt"]))
+    bw_hi = max(v for r in rows for v in (r["bw_bwopt"], r["bw_cwopt"]))
     # Label the two highest-cutwidth orange (drop == 2) arrows only.
     orange_labeled = {
         r["cluster"] for r in sorted(
@@ -308,7 +321,7 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
                markeredgecolor="k", label="bandwidth-optimal"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-optimal"),
-    ], loc="upper left", framealpha=0.95)
+    ], loc="upper right", framealpha=0.95, ncol=2)
     ax.add_artist(marker_legend)
     ax.legend(handles=[
         Line2D([], [], color="red", lw=2, label="diverge (cutwidth drops > 2)"),
@@ -320,12 +333,12 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
     ax.set_xlabel(r"bandwidth $B$")
     ax.set_ylabel(r"cutwidth $C$")
     if log_scale:
-        ax.set_ylim(top=100)   # cap at 10^2 (highest cutwidth in the set is 76)
+        # headroom above the data (max C = 76) for the one-row marker legend
+        ax.set_ylim(top=190)
     else:
         # linear: keep the frame on the data instead of following the C = B
         # diagonal up to max(bandwidth), which would leave the points squashed.
-        cut_hi = max(v for r in rows for v in (r["cut_bwopt"], r["cut_cwopt"]))
-        ax.set_ylim(0, cut_hi * 1.12)
+        ax.set_ylim(0, cut_hi * 1.42)
         ax.set_xlim(left=0)
     ax.grid(alpha=0.25)
     fig.tight_layout()
@@ -357,13 +370,13 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     lo = float(min(rb.min(), rc.min())) * 0.85
     hi = float(max(rb.max(), rc.max())) * 1.15
 
-    # Highlight (sky blue) the biggest range reductions at unchanged cutwidth.
-    # value = (dx, dy, ha, display label)
+    # The biggest range reductions at unchanged cutwidth: one colour each,
+    # named in a separate legend instead of annotated on the plot.
     highlight = {
-        "hyperkagome324_3x3x3": (-6, 6, "right", "hyperkagome324"),
-        "hyperkagome96_2x2x2": (7, 1, "left", "hyperkagome96"),
-        "pyrochlore64": (-6, -13, "right", "pyrochlore64"),
-        "pyrochlore48a": (7, -4, "left", "pyrochlore48a"),
+        "hyperkagome324_3x3x3": ("tab:orange", "hyperkagome324"),
+        "hyperkagome96_2x2x2": ("tab:green", "hyperkagome96"),
+        "pyrochlore64": ("tab:purple", "pyrochlore64"),
+        "pyrochlore48a": ("gold", "pyrochlore48a"),
     }
     hl = np.array([c in highlight for c, _, _ in pairs])
 
@@ -371,19 +384,19 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, alpha=0.4)
     ax.scatter(rb[below & ~hl], rc[below & ~hl], c="tab:blue", s=48, zorder=3,
                edgecolors="black", linewidths=0.4)
-    ax.scatter(rb[below & hl], rc[below & hl], c="skyblue", s=56, zorder=4,
-               edgecolors="black", linewidths=0.4)
     ax.scatter(rb[~below], rc[~below], c="crimson", marker="D", s=48, zorder=3,
                edgecolors="black", linewidths=0.4)
-    for c, x, y in pairs:
-        if y >= x:                                   # name the rare exceptions
-            ax.annotate(f"{c} (×{y / x:.2f})", (x, y), color="crimson",
-                        fontsize=8, xytext=(5, -2), textcoords="offset points")
-        elif c in highlight:
-            dx, dy, ha, label = highlight[c]
-            ax.annotate(f"{label} (×{y / x:.2f})", (x, y), color="black",
-                        fontsize=8, ha=ha, xytext=(dx, dy),
-                        textcoords="offset points")
+    cluster_handles = []
+    for c, x, y in pairs:                            # highlighted, one by one
+        if c not in highlight or y >= x:
+            continue
+        color, label = highlight[c]
+        ax.scatter([x], [y], c=color, s=64, zorder=4,
+                   edgecolors="black", linewidths=0.5)
+        cluster_handles.append((y / x, Line2D(
+            [], [], marker="o", color="w", markerfacecolor=color,
+            markeredgecolor="k", label=f"{label} (×{y / x:.2f})")))
+    cluster_handles = [h for _, h in sorted(cluster_handles, key=lambda t: t[0])]
     if log_scale:
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -392,13 +405,17 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     ax.set_aspect("equal")
     ax.set_xlabel(r"avg. interaction range $R$  (bandwidth-optimal)")
     ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
-    ax.legend(handles=[
+    main_legend = ax.legend(handles=[
         Line2D([], [], marker="o", color="w", markerfacecolor="tab:blue",
                markeredgecolor="k", label=r"$C$-opt shortens $R$"),
         Line2D([], [], marker="D", color="w", markerfacecolor="crimson",
                markeredgecolor="k", label=r"$C$-opt lengthens $R$"),
         Line2D([], [], ls="--", color="k", alpha=0.4, label=r"$R_{cw} = R_{bw}$"),
     ], loc="upper left", framealpha=0.95)
+    if cluster_handles:                    # names of the largest reductions
+        ax.add_artist(main_legend)
+        ax.legend(handles=cluster_handles, loc="lower right", framealpha=0.95,
+                  fontsize=10, title="largest $R$ reductions")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     _save(fig, prefix, "avgrange")
