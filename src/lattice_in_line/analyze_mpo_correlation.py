@@ -426,8 +426,16 @@ def plot_avg_range(recs: List[Dict], prefix: str,
     if log_scale:
         ax.set_xscale("log")
         ax.set_yscale("log")
-    ax.set_xlim(lo, hi)
-    ax.set_ylim(lo, hi)
+    # crop the empty upper corner (data max is ~31.8 / ~24.8); warn rather than
+    # silently hide a point if a future layout grows past the frame
+    x_top, y_top = 33.0, 27.0
+    outside = [c for c, x, y in pairs if x > x_top or y > y_top]
+    if outside:
+        print(f"[plot] avg-range frame ({x_top:g} x {y_top:g}) hides "
+              f"{len(outside)} cluster(s): {', '.join(sorted(outside))}",
+              file=sys.stderr)
+    ax.set_xlim(lo, x_top)
+    ax.set_ylim(lo, y_top)
     ax.set_aspect("equal")
     ax.set_xlabel(r"avg. interaction range $R$  (bandwidth-optimal)")
     ax.set_ylabel(r"avg. interaction range $R$  (cutwidth-optimal)")
