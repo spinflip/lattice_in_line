@@ -332,7 +332,7 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
                markeredgecolor="k", label="bandwidth-optimal"),
         Line2D([], [], marker="s", color="w", markerfacecolor="tab:orange",
                markeredgecolor="k", label="cutwidth-optimal"),
-    ], loc="upper right", framealpha=0.95, ncol=2)
+    ], loc="upper right", framealpha=0.95, ncol=1)
     ax.add_artist(marker_legend)
     ax.legend(handles=[
         Line2D([], [], color="red", lw=2, label="diverge (cutwidth drops > 2)"),
@@ -343,8 +343,9 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
     ], loc="lower right", framealpha=0.95)
     ax.set_xlabel(r"bandwidth $B$")
     ax.set_ylabel(r"cutwidth $C$")
+    ax.set_xlim(right=hi - 50)      # trim the empty right margin
     if log_scale:
-        # headroom above the data (max C = 76) for the one-row marker legend
+        # headroom above the data for the marker legend
         ax.set_ylim(top=190)
     else:
         # linear: keep the frame on the data instead of following the C = B
