@@ -320,9 +320,10 @@ def plot_divergence(recs: List[Dict], rows: List[Dict], prefix: str,
         # Label the divergers (red), every marginal drop==1 (yellow), and the
         # two highest-cutwidth drop==2 (orange) arrows.
         if diff > 2 or diff == 1 or (diff == 2 and r["cluster"] in orange_labeled):
-            # drop the _unitcell suffix (trillium108_3x3x3 -> trillium108) and
-            # append the cutwidth factor
-            ax.annotate(f"{r['cluster'].split('_')[0]} (×{r['cut_ratio']:.2f})",
+            # drop the _unitcell suffix (trillium108_3x3x3 -> trillium108);
+            # only the large divergences carry the absolute cutwidth drop
+            name = r["cluster"].split("_")[0]
+            ax.annotate(name + (f" ($\\Delta C$={diff})" if diff > 2 else ""),
                         (r["bw_cwopt"], r["cut_cwopt"]),
                         color=lab_col, xytext=(4, -2),
                         textcoords="offset points", fontsize=11)
