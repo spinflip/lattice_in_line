@@ -24,7 +24,7 @@ except ImportError:  # pragma: no cover - Python < 3.11 fallback.
 
 import numpy as np
 
-from .cluster_edges import CLUSTER_EDGES
+from .cluster_edges import CLUSTER_EDGES, CLUSTER_EDGE_LAYERS
 from .graph_ordering import GRAPH_ORDERING_CHOICES, graph_ordering_permutation
 
 
@@ -219,6 +219,38 @@ def cluster_ordering_permutation(name: str, *, ordering: str = "rcm") -> List[in
         key=name,
     )
     return perm
+
+
+def cluster_edge_layers(name: str, *, ordering: str = "rcm") -> List[EdgeList]:
+    """Return the three disjoint heavy-hex edge-color layers in MPS order."""
+    if name not in CLUSTER_EDGE_LAYERS:
+        supported = ", ".join(CLUSTER_EDGE_LAYERS)
+        raise ValueError(f"No edge layers for cluster {name!r}. Supported: {supported}")
+
+    raw_layers = CLUSTER_EDGE_LAYERS[name]
+    if len(raw_layers) != 3:
+        raise ValueError(f"Expected three edge layers for {name}, got {len(raw_layers)}")
+    expected = {tuple(sorted(edge)) for edge in CLUSTER_EDGES[name]}
+    colored = []
+    for layer_index, layer in enumerate(raw_layers, start=1):
+        sites = set()
+        for edge in layer:
+            normalized = tuple(sorted(edge))
+            if normalized in colored:
+                raise ValueError(f"Duplicate edge {normalized} in {name} layer {layer_index}")
+            if normalized[0] in sites or normalized[1] in sites:
+                raise ValueError(f"Layer {layer_index} of {name} is not a matching")
+            sites.update(normalized)
+            colored.append(normalized)
+    if set(colored) != expected or len(colored) != len(expected):
+        raise ValueError(f"Edge layers for {name} do not exactly cover its cluster edges")
+
+    permutation = cluster_ordering_permutation(name, ordering=ordering)
+    relabeled_layers = []
+    for layer in raw_layers:
+        relabeled = [tuple(sorted((permutation[i], permutation[j]))) for i, j in layer]
+        relabeled_layers.append(sorted(relabeled))
+    return relabeled_layers
 
 
 def _ordered_cluster_edges(
