@@ -21,10 +21,17 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
+# peak number of CPU cores the batch may use
+CPUS="${CPUS:-8}"
+
 # MODE (plain|ss|cutwidth) is inherited by the env calls below; tag the per-
 # cluster log so a cutwidth run never overwrites the bandwidth run's log.
 MODE="${MODE:-plain}"
-LOGTAG=""; [[ "$MODE" != "plain" ]] && LOGTAG="_$MODE"
+case "$MODE" in
+  plain)    LOGTAG="_bw" ;;
+  cutwidth) LOGTAG="_cw" ;;
+  *)        LOGTAG="_$MODE" ;;
+esac
 # run-directory prefix: cutwidth -> cw_run_, everything else -> bw_run_
 RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
 
@@ -43,8 +50,9 @@ fi
 CENV=(
   TIME_HEUR=$TIME_HEUR_D STALL=300 TIME_OPT=3600 TIME_PER_K=$TIME_PER_K_D
   LADDER_TIME=$LADDER_TIME_D
-  # 8 CPUs peak: SA phase 8 procs; bw ladder 2 sides x 1 job x 4 threads = 8
-  SAT_TIME=3600 WORKERS=4 PROCS=8 JOBS_PER_SIDE=1 SEED=1
+  # CPUS is the peak core count (override: CPUS=16 ./certify_small.sh ...):
+  # SA uses CPUS procs; the bw ladder runs 2 x 1 x CPUS/2 CP-SAT threads.
+  SAT_TIME=3600 WORKERS=$(( CPUS >= 2 ? CPUS / 2 : 1 )) PROCS=$CPUS JOBS_PER_SIDE=1 SEED=1
 )
 # show a representative plan (same budgets for every cluster) and confirm
 if ! env "${CENV[@]}" STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_${CLUSTERS[0]}" PLAN_ONLY=1 CONFIRM=1 \
@@ -60,8 +68,7 @@ nohup bash -c '
     env "${CENV[@]}" STATE_DIR="$DATA_DIR/${RUNPREFIX}_run_$c" \
       ./certify_cluster.sh "$c" >> "$DATA_DIR/certify_${c}${LOGTAG}.log" 2>&1
   done
-' bash "$DATA_DIR" "$LOGTAG" "$RUNPREFIX" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" >> "$DATA_DIR/certify_small${LOGTAG}.log" 2>&1 &
+' bash "$DATA_DIR" "$LOGTAG" "$RUNPREFIX" "${#CENV[@]}" "${CENV[@]}" "${CLUSTERS[@]}" > /dev/null 2>&1 &
 
-echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!)"
+echo "launched small campaign for ${#CLUSTERS[@]} cluster(s) (pid $!, $CPUS CPUs)"
 for c in "${CLUSTERS[@]}"; do echo "  campaign log: $DATA_DIR/certify_${c}${LOGTAG}.log"; done
-echo "  (launcher wrapper log: $DATA_DIR/certify_small${LOGTAG}.log)"

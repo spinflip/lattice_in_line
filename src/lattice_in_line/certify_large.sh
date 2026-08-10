@@ -13,11 +13,19 @@ fi
 DATA_DIR="${DATA_DIR:-$HOME/lattice_in_line_data}"
 mkdir -p "$DATA_DIR"
 
-# MODE (plain|ss|cutwidth) is inherited by env below; tag the launcher log so a
-# cutwidth run never overwrites the bandwidth run's log. e.g.
-#   MODE=cutwidth ./certify_large.sh C60  ->  certify_C60_cutwidth.log
+# peak number of CPU cores the campaign may use
+CPUS="${CPUS:-32}"
+
+# MODE (plain|ss|cutwidth) is inherited by env below; the launcher log carries a
+# normalized mode tag so runs never overwrite each other:
+#   ./certify_large.sh C60               ->  certify_C60_bw.log
+#   MODE=cutwidth ./certify_large.sh C60 ->  certify_C60_cw.log
 MODE="${MODE:-plain}"
-LOGTAG=""; [[ "$MODE" != "plain" ]] && LOGTAG="_$MODE"
+case "$MODE" in
+  plain)    LOGTAG="_bw" ;;
+  cutwidth) LOGTAG="_cw" ;;
+  *)        LOGTAG="_$MODE" ;;
+esac
 # run-directory prefix: cutwidth -> cw_run_, everything else -> bw_run_ (so a
 # cutwidth campaign gets its own state dir and never mixes with the bandwidth one)
 RUNPREFIX=bw; [[ "$MODE" == "cutwidth" ]] && RUNPREFIX=cw
@@ -44,8 +52,10 @@ CENV=(
   TIME_PER_K=$TIME_PER_K_D
   LADDER_TIME=$LADDER_TIME_D
   SAT_TIME=0
-  # 32 CPUs peak: SA phase 32 procs; bw ladder 2 sides x 1 job x 16 threads = 32
-  WORKERS=16 PROCS=32 JOBS_PER_SIDE=1
+  # CPUS is the peak core count (override: CPUS=64 ./certify_large.sh ...):
+  # SA phase uses CPUS procs; the bw ladder runs 2 sides x 1 job x CPUS/2
+  # CP-SAT threads = CPUS.
+  WORKERS=$(( CPUS >= 2 ? CPUS / 2 : 1 )) PROCS=$CPUS JOBS_PER_SIDE=1
   SEED=1
 )
 # show the plan (phases + budgets) and confirm, then launch for real
@@ -54,7 +64,7 @@ if ! env "${CENV[@]}" PLAN_ONLY=1 CONFIRM=1 ./certify_cluster.sh "$CLUSTER"; the
 fi
 nohup env "${CENV[@]}" ./certify_cluster.sh "$CLUSTER" >> "$DATA_DIR/certify_${CLUSTER}${LOGTAG}.log" 2>&1 &
 
-echo "launched large campaign for $CLUSTER (pid $!)"
+echo "launched large campaign for $CLUSTER (pid $!, $CPUS CPUs)"
 echo "  campaign log: $DATA_DIR/certify_${CLUSTER}${LOGTAG}.log"
 
 ## extract mid-run:

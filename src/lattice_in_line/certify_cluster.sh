@@ -177,6 +177,28 @@ EOF
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# final metrics of the best layout in $STATE_JSON: bandwidth, cutwidth,
+# avg_range. Skips silently for blocked/supersite labelings (multiplicity > 1).
+print_metrics() {
+  "$PYTHON" - "$CLUSTER" "$STATE_JSON" <<'PYEOF' || true
+import json, sys
+from lattice_in_line.cluster_edges import CLUSTER_EDGES
+from lattice_in_line.bandwidth_heuristics_benchmark import normalize_edges
+from lattice_in_line.bandwidth_certifier import bandwidth_of, cutwidth_of, total_range
+cluster, path = sys.argv[1], sys.argv[2]
+if cluster not in CLUSTER_EDGES:
+    sys.exit(0)
+lab = json.load(open(path)).get("best_labeling")
+verts, edges = normalize_edges(CLUSTER_EDGES[cluster])
+n = max(max(u, v) for u, v in edges) + 1
+if not lab or sorted(lab) != list(range(1, n + 1)):
+    sys.exit(0)                       # no layout yet, or multiplicity > 1
+print(f"final layout: bandwidth={bandwidth_of(lab, edges)}, "
+      f"cutwidth={cutwidth_of(lab, edges)}, "
+      f"avg_range={total_range(lab, edges) / len(edges):.2f}")
+PYEOF
+}
+
 # proof level recorded for k (math/cpsat/xsat/drat), or "none"
 proof_of() {
   "$PYTHON" - "$STATE_JSON" "$1" <<'PYEOF'
@@ -393,6 +415,7 @@ if [[ "$MODE" == "cutwidth" ]]; then
     log "result: best-known cutwidth $UB (lower bound $LB, NOT certified); permutation in"
   fi
   log "  $STATE_DIR/${CLUSTER}_cw${CWTAG}_permutation.txt"
+  print_metrics
   exit 0
 fi
 
@@ -522,3 +545,4 @@ else
 fi
 log "  $STATE_DIR/${CLUSTER}_optimal_permutation.txt"
 C status
+print_metrics
