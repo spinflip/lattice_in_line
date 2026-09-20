@@ -1656,5 +1656,15 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
 #   C40: molecular / no lattice recipe
 #   C60: molecular / no lattice recipe
 #   cubocta: molecular / no lattice recipe
+#   heavyHex108: molecular / no lattice recipe
+#   heavyHex142: molecular / no lattice recipe
+#   heavyHex185: molecular / no lattice recipe
+#   heavyHex28: molecular / no lattice recipe
+#   heavyHex35: molecular / no lattice recipe
+#   heavyHex399: molecular / no lattice recipe
+#   heavyHex51: molecular / no lattice recipe
+#   heavyHex74: molecular / no lattice recipe
+#   heavyHex75: molecular / no lattice recipe
+#   heavyHex99: molecular / no lattice recipe
 #   icosa: molecular / no lattice recipe
 #   icosidodeca: molecular / no lattice recipe
