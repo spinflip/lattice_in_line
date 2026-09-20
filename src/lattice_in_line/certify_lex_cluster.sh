@@ -61,7 +61,7 @@
 #                  re-running the SAME command continues from the first
 #                  unfinished softening. 0 = re-run every phase regardless.  (1)
 #   PLAN_ONLY      1 = print the campaign plan and exit without running   (0)
-#   CONFIRM        1 = after the plan, ask for keyboard y/N confirmation
+#   CONFIRM        1 = after the plan, ask for keyboard Y/n confirmation (Enter = yes)
 #                  (interactive only; the launchers set this)             (0)
 #   YES            1 = skip that confirmation prompt (auto-accept)        (0)
 #
@@ -235,11 +235,11 @@ print_plan() {
 print_plan
 # optional keyboard confirmation (interactive terminals only); YES=1 skips it
 if [[ "${CONFIRM:-0}" == 1 && "${YES:-0}" != 1 && -t 0 ]]; then
-  printf '%s' "Proceed with this campaign? [y/N] " > /dev/tty
+  printf '%s' "Proceed with this campaign? [Y/n] " > /dev/tty
   read -r _ans < /dev/tty || _ans=""
   case "$_ans" in
-    [yY]|[yY][eE][sS]) log "confirmed; launching." ;;
-    *) log "aborted by user; nothing launched."; exit 3 ;;
+    [nN]|[nN][oO]) log "aborted by user; nothing launched."; exit 3 ;;
+    *) log "confirmed; launching." ;;
   esac
 fi
 if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi

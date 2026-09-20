@@ -20,7 +20,7 @@ CPUS="${CPUS:-32}"
 # normalized mode tag so runs never overwrite each other:
 #   ./certify_large.sh C60               ->  certify_C60_bw.log
 #   MODE=cutwidth ./certify_large.sh C60 ->  certify_C60_cw.log
-MODE="${MODE:-plain}"
+MODE="${MODE:-cutwidth}"
 case "$MODE" in
   plain)    LOGTAG="_bw" ;;
   cutwidth) LOGTAG="_cw" ;;

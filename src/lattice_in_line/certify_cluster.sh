@@ -36,10 +36,10 @@
 #   CERT          path to bandwidth_certifier.py       (./bandwidth_certifier.py)
 #   PYTHON        python interpreter                   (python3)
 #   PLAN_ONLY     1 = print the campaign plan and exit without running  (0)
-#   CONFIRM       1 = after the plan, ask for keyboard y/N confirmation
+#   CONFIRM       1 = after the plan, ask for keyboard Y/n confirmation (Enter = yes)
 #                 (interactive terminals only; the launchers set this)   (0)
 #   YES           1 = skip that confirmation prompt (auto-accept)        (0)
-#   MODE          campaign type: plain | ss | cutwidth  (plain)
+#   MODE          campaign type: plain | ss | cutwidth  (cutwidth)
 #                 cutwidth minimizes cut_max (max Hamiltonian edges crossing any
 #                 MPS cut = the MPO bond dimension) instead of bandwidth. Same
 #                 certified machinery (SA UB + CP-SAT ladder + SAT cross-check);
@@ -100,7 +100,7 @@ STALL="${STALL:-0}"
 SYMMETRY="${SYMMETRY:-orbit}"
 FINAL_SYM="${FINAL_SYM:-reversal}"
 MAX_ROUNDS="${MAX_ROUNDS:-50}"
-MODE="${MODE:-plain}"
+MODE="${MODE:-cutwidth}"
 # capture BLOCK before it is defaulted for ss mode: MODE=cutwidth is PLAIN
 # unless the caller explicitly sets BLOCK (then it minimizes the BLOCKED
 # cutwidth over supersites of that size, with the hidden-bond knobs applying)
@@ -257,11 +257,11 @@ print_plan() {
 print_plan
 # optional keyboard confirmation (interactive terminals only); YES=1 skips it
 if [[ "${CONFIRM:-0}" == 1 && "${YES:-0}" != 1 && -t 0 ]]; then
-  printf '%s' "Proceed with this campaign? [y/N] " > /dev/tty
+  printf '%s' "Proceed with this campaign? [Y/n] " > /dev/tty
   read -r _ans < /dev/tty || _ans=""
   case "$_ans" in
-    [yY]|[yY][eE][sS]) log "confirmed; launching." ;;
-    *) log "aborted by user; nothing launched."; exit 3 ;;
+    [nN]|[nN][oO]) log "aborted by user; nothing launched."; exit 3 ;;
+    *) log "confirmed; launching." ;;
   esac
 fi
 if [[ "${PLAN_ONLY:-0}" == 1 ]]; then exit 0; fi

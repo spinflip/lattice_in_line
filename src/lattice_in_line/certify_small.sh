@@ -26,7 +26,7 @@ CPUS="${CPUS:-8}"
 
 # MODE (plain|ss|cutwidth) is inherited by the env calls below; tag the per-
 # cluster log so a cutwidth run never overwrites the bandwidth run's log.
-MODE="${MODE:-plain}"
+MODE="${MODE:-cutwidth}"
 case "$MODE" in
   plain)    LOGTAG="_bw" ;;
   cutwidth) LOGTAG="_cw" ;;
