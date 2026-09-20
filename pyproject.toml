@@ -31,6 +31,7 @@ all = ["matplotlib", "ortools", "python-sat", "pynauty", "scipy"]
 
 [project.scripts]
 lil-cluster-generator = "lattice_in_line.cluster_generator:main"
+lil-heavy-hex-generator = "lattice_in_line.heavy_hex_generator:main"
 lil-bandwidth-certifier = "lattice_in_line.bandwidth_certifier:main"
 lil-fiedler-ordering = "lattice_in_line.fiedler_ordering:main"
 lil-dmrg-log-to-json = "lattice_in_line.dmrg_log_to_json:main"

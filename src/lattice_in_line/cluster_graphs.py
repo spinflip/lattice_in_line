@@ -223,11 +223,21 @@ def cluster_ordering_permutation(name: str, *, ordering: str = "rcm") -> List[in
 
 def cluster_edge_layers(name: str, *, ordering: str = "rcm") -> List[EdgeList]:
     """Return the three disjoint heavy-hex edge-color layers in MPS order."""
-    if name not in CLUSTER_EDGE_LAYERS:
+    if name in CLUSTER_EDGE_LAYERS:
+        raw_layers = CLUSTER_EDGE_LAYERS[name]
+    elif name.startswith("heavyHex"):
+        from .heavy_hex_generator import edge_layers, patch_for_cluster
+
+        try:
+            raw_layers = edge_layers(patch_for_cluster(name))
+        except ValueError as error:
+            supported = ", ".join(CLUSTER_EDGE_LAYERS)
+            raise ValueError(
+                f"No edge layers for cluster {name!r}. Supported: {supported}"
+            ) from error
+    else:
         supported = ", ".join(CLUSTER_EDGE_LAYERS)
         raise ValueError(f"No edge layers for cluster {name!r}. Supported: {supported}")
-
-    raw_layers = CLUSTER_EDGE_LAYERS[name]
     if len(raw_layers) != 3:
         raise ValueError(f"Expected three edge layers for {name}, got {len(raw_layers)}")
     expected = {tuple(sorted(edge)) for edge in CLUSTER_EDGES[name]}

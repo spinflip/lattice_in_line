@@ -7,6 +7,12 @@ EXPECTED_LAYER_SIZES = {
     "heavyHex35": (13, 12, 13),
     "heavyHex51": (19, 19, 18),
     "heavyHex74": (28, 27, 27),
+    "heavyHex75": (31, 31, 22),
+    "heavyHex99": (41, 41, 30),
+    "heavyHex108": (44, 44, 34),
+    "heavyHex142": (58, 58, 46),
+    "heavyHex185": (75, 75, 62),
+    "heavyHex399": (161, 161, 142),
 }
 
 
