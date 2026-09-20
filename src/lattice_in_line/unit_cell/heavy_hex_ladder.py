@@ -121,7 +121,7 @@ def _edge_sections(edges):
 
 
 def build(ordering="optimized", width=1):
-    """Return the periodic geometry and its three Floquet edge layers."""
+    """Return the periodic geometry and its three edge layers."""
     if width not in (1, 2, 3):
         raise ValueError("width must be 1, 2, or 3 (alternating width,width+1 hexagons)")
     if width == 1:

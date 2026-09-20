@@ -1398,7 +1398,7 @@ CLUSTER_EDGES: Dict[str, EdgeList] = {
 }
 
 
-# Floquet bond colors from the heavy-hex patches in arXiv:2607.24937v1.
+# Bond colors for the heavy-hex patches (see e.g. arXiv:2607.24937v1).
 # Indices here are the original patch labels; cluster_edge_layers applies the
 # requested original-to-MPS ordering permutation before returning them.
 CLUSTER_EDGE_LAYERS: Dict[str, List[EdgeList]] = {

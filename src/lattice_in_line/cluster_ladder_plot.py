@@ -15,7 +15,7 @@ Usage::
 
 Each node shows the MPS position (large, the enumeration used by the ordering
 file) and the original patch label (small, top left).  Edges are colored by the
-Floquet layers from ``CLUSTER_EDGE_LAYERS`` when the cluster defines them.
+layers from ``CLUSTER_EDGE_LAYERS`` when the cluster defines them.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from .cluster_graphs import _layout_stats, cluster_ordering_permutation
 
 Edge = Tuple[int, int]
 
-LAYER_COLORS = ("#d62728", "#1f77b4", "#2ca02c")  # Floquet H1 / H2 / H3
+LAYER_COLORS = ("#d62728", "#1f77b4", "#2ca02c")  # bond-color layers 1 / 2 / 3
 PLAIN_COLOR = "#607080"
 
 
@@ -165,7 +165,7 @@ def plot_cluster_ladder(
     ]
     if has_layers:
         handles += [
-            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"Floquet layer H{k + 1}")
+            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"layer {k + 1}")
             for k in range(3)
         ]
     ax.legend(handles=handles, loc="upper center", fontsize=8,
@@ -201,7 +201,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--snake", action="store_true",
                         help="boustrophedon columns instead of top-to-bottom")
     parser.add_argument("--no-layers", action="store_true",
-                        help="single edge color instead of Floquet layer colors")
+                        help="single edge color instead of per-layer colors")
     parser.add_argument("--output-stem", default=None,
                         help="output stem for a single cluster (default: <name>_ladder_<ordering>)")
     parser.add_argument("--dpi", type=int, default=300)

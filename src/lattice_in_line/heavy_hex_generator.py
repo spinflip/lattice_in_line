@@ -15,7 +15,7 @@ downward connector qubits; connector columns alternate ``{2, 6, ...}`` and
 ``{0, 4, 8, ...}`` down the lattice, starting with the former when the top row
 is short.  This reproduces every entry of ``CLUSTER_EDGES`` exactly.
 
-Floquet edge layers: the four known patches return the stored (published)
+Edge layers: the four known patches return the stored (published)
 colorings from ``CLUSTER_EDGE_LAYERS`` verbatim.  Those four tables are
 mutually inconsistent (heavyHex74 recolors 37 of the 56 edges it shares with
 heavyHex51), so no parametric rule can reproduce all of them; for new patches
@@ -279,7 +279,7 @@ def _kempe_three_coloring(n_sites: int, edges: Sequence[Edge]) -> List[List[Edge
 
 
 def edge_layers(patch: HeavyHexPatch) -> List[List[Edge]]:
-    """Floquet layers: stored tables for the known patches, generated otherwise."""
+    """Edge layers: stored tables for the known patches, generated otherwise."""
     if patch.name in CLUSTER_EDGE_LAYERS:
         layers = [
             [tuple(sorted(edge)) for edge in layer]
@@ -367,7 +367,7 @@ def plot_patch_sketch(
     ]
     if layers is not None:
         handles += [
-            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"Floquet layer H{k + 1}")
+            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"layer {k + 1}")
             for k in range(3)
         ]
     ax.legend(handles=handles, loc="upper center", fontsize=8,
@@ -461,7 +461,7 @@ def plot_patch_ladder(
     ]
     if layers is not None:
         handles += [
-            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"Floquet layer H{k + 1}")
+            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"layer {k + 1}")
             for k in range(3)
         ]
     ax.legend(handles=handles, loc="upper center", fontsize=8,
@@ -502,7 +502,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--legs", type=int, default=4, help="ladder legs (default 4)")
     parser.add_argument("--snake", action="store_true")
     parser.add_argument("--no-layers", action="store_true",
-                        help="single edge color instead of Floquet layers")
+                        help="single edge color instead of per-layer colors")
     parser.add_argument("--print-edges", action="store_true",
                         help="print cluster_edges.py-style tables for the patch")
     parser.add_argument(

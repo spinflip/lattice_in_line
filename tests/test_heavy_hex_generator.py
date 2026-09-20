@@ -22,7 +22,7 @@ def test_known_patches_reproduce_cluster_edges_exactly(name):
 
 
 @pytest.mark.parametrize("name", sorted(KNOWN_PATCHES))
-def test_known_patches_return_valid_floquet_layers(name):
+def test_known_patches_return_valid_edge_layers(name):
     patch = patch_for_cluster(name)
     layers = edge_layers(patch)
     validate_layers(patch, layers)
@@ -38,7 +38,7 @@ def test_known_patches_return_valid_floquet_layers(name):
     "rows, cols, top_short, bottom_short",
     [(9, 9, True, False), (6, 13, True, True), (5, 9, False, True), (12, 9, True, False)],
 )
-def test_generated_layers_are_valid_floquet_colorings(rows, cols, top_short, bottom_short):
+def test_generated_layers_are_valid_edge_colorings(rows, cols, top_short, bottom_short):
     patch = heavy_hex_patch(rows, cols=cols, top_short=top_short, bottom_short=bottom_short)
     layers = edge_layers(patch)
     assert len(layers) == 3

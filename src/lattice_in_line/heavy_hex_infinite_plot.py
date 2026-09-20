@@ -176,7 +176,7 @@ def plot_infinite_ladder(
     ]
     if show_layers:
         handles += [
-            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"Floquet layer H{k + 1}")
+            Line2D([], [], color=LAYER_COLORS[k], linewidth=2, label=f"layer {k + 1}")
             for k in range(3)
         ]
     ax.legend(handles=handles, loc="upper center", fontsize=8,
@@ -209,7 +209,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ordering", choices=("optimized", "natural"), default="optimized",
                         help="site labels: MPS positions of this ordering")
     parser.add_argument("--no-layers", action="store_true",
-                        help="single bond color instead of Floquet layer colors")
+                        help="single bond color instead of per-layer colors")
     parser.add_argument("--horizontal", action="store_true",
                         help="stack the cells left-to-right instead of top-to-bottom")
     parser.add_argument("--output-stem", default=None)

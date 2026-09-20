@@ -132,30 +132,30 @@ CUSTOM_PERMUTATIONS = {
 	# MPO dAux_avg=13.9, dAux_max=20, dAux_sum=1407
 	"squareTorus100_10x10": {0: 0, 1: 1, 2: 19, 3: 26, 4: 39, 5: 58, 6: 40, 7: 22, 8: 12, 9: 5, 10: 6, 11: 7, 12: 20, 13: 38, 14: 57, 15: 68, 16: 50, 17: 32, 18: 14, 19: 8, 20: 16, 21: 18, 22: 37, 23: 56, 24: 75, 25: 78, 26: 69, 27: 51, 28: 33, 29: 15, 30: 27, 31: 36, 32: 55, 33: 74, 34: 89, 35: 90, 36: 88, 37: 70, 38: 52, 39: 34, 40: 35, 41: 54, 42: 73, 43: 86, 44: 91, 45: 98, 46: 99, 47: 82, 48: 71, 49: 53, 50: 45, 51: 64, 52: 76, 53: 87, 54: 92, 55: 96, 56: 97, 57: 81, 58: 77, 59: 63, 60: 31, 61: 49, 62: 67, 63: 85, 64: 93, 65: 95, 66: 94, 67: 80, 68: 62, 69: 44, 70: 21, 71: 30, 72: 48, 73: 66, 74: 83, 75: 84, 76: 79, 77: 61, 78: 43, 79: 25, 80: 9, 81: 11, 82: 29, 83: 47, 84: 65, 85: 72, 86: 60, 87: 42, 88: 24, 89: 10, 90: 2, 91: 3, 92: 17, 93: 28, 94: 46, 95: 59, 96: 41, 97: 23, 98: 13, 99: 4},
 	
-	# Floquet-Ising MPO statistics use the bipartite-graph builder at
+	# The MPOs here are specific to Floquet-Ising-circuits at
 	# (theta_x, theta_z, theta_zz)=(1.57/3, 0.34/3, 1.05); averages and sums
 	# include all L+1 auxiliary bonds.
 	# bandwidth=4, avg_range=2.40, cutwidth=4
-	# Floquet H1 MPO dAux_avg=4.7, dAux_max=8, dAux_sum=136
-	# Floquet H2 MPO dAux_avg=4.3, dAux_max=11, dAux_sum=125
-	# Floquet H3 MPO dAux_avg=4.0, dAux_max=8, dAux_sum=117
+	# layer 1 MPO dAux_avg=4.7, dAux_max=8, dAux_sum=136
+	# layer 2 MPO dAux_avg=4.3, dAux_max=11, dAux_sum=125
+	# layer 3 MPO dAux_avg=4.0, dAux_max=8, dAux_sum=117
 	"heavyHex28": {0: 0, 1: 1, 2: 2, 3: 3, 4: 5, 5: 6, 6: 7, 7: 10, 8: 12, 9: 4, 10: 9, 11: 16, 12: 8, 13: 11, 14: 15, 15: 14, 16: 13, 17: 17, 18: 21, 19: 20, 20: 18, 21: 19, 22: 22, 23: 23, 24: 27, 25: 26, 26: 25, 27: 24},
 
 	# bandwidth=4, avg_range=2.47, cutwidth=4
-	# Floquet H1 MPO dAux_avg=5.4, dAux_max=11, dAux_sum=194
-	# Floquet H2 MPO dAux_avg=4.1, dAux_max=8, dAux_sum=147
-	# Floquet H3 MPO dAux_avg=4.1, dAux_max=11, dAux_sum=147
+	# layer 1 MPO dAux_avg=5.4, dAux_max=11, dAux_sum=194
+	# layer 2 MPO dAux_avg=4.1, dAux_max=8, dAux_sum=147
+	# layer 3 MPO dAux_avg=4.1, dAux_max=11, dAux_sum=147
 	"heavyHex35": {0: 2, 1: 0, 2: 1, 3: 3, 4: 5, 5: 4, 6: 6, 7: 11, 8: 8, 9: 7, 10: 9, 11: 13, 12: 12, 13: 10, 14: 14, 15: 16, 16: 15, 17: 17, 18: 20, 19: 18, 20: 19, 21: 23, 22: 22, 23: 21, 24: 25, 25: 28, 26: 26, 27: 24, 28: 27, 29: 29, 30: 30, 31: 31, 32: 34, 33: 33, 34: 32},
 
 	# bandwidth=4, avg_range=2.57, cutwidth=4
-	# Floquet H1 MPO dAux_avg=5.2, dAux_max=11, dAux_sum=269
-	# Floquet H2 MPO dAux_avg=4.8, dAux_max=11, dAux_sum=249
-	# Floquet H3 MPO dAux_avg=4.1, dAux_max=11, dAux_sum=215
+	# layer 1 MPO dAux_avg=5.2, dAux_max=11, dAux_sum=269
+	# layer 2 MPO dAux_avg=4.8, dAux_max=11, dAux_sum=249
+	# layer 3 MPO dAux_avg=4.1, dAux_max=11, dAux_sum=215
 	"heavyHex51": {0: 2, 1: 1, 2: 0, 3: 4, 4: 5, 5: 3, 6: 6, 7: 12, 8: 8, 9: 7, 10: 9, 11: 13, 12: 11, 13: 10, 14: 14, 15: 15, 16: 16, 17: 17, 18: 18, 19: 19, 20: 20, 21: 24, 22: 23, 23: 21, 24: 25, 25: 27, 26: 26, 27: 22, 28: 28, 29: 31, 30: 32, 31: 30, 32: 29, 33: 33, 34: 37, 35: 36, 36: 35, 37: 39, 38: 42, 39: 34, 40: 41, 41: 46, 42: 38, 43: 40, 44: 43, 45: 44, 46: 45, 47: 49, 48: 50, 49: 48, 50: 47},
 
 	# bandwidth=4, avg_range=2.63, cutwidth=4
-	# Floquet H1 MPO dAux_avg=5.0, dAux_max=11, dAux_sum=373
-	# Floquet H2 MPO dAux_avg=5.0, dAux_max=11, dAux_sum=372
-	# Floquet H3 MPO dAux_avg=4.6, dAux_max=11, dAux_sum=342
+	# layer 1 MPO dAux_avg=5.0, dAux_max=11, dAux_sum=373
+	# layer 2 MPO dAux_avg=5.0, dAux_max=11, dAux_sum=372
+	# layer 3 MPO dAux_avg=4.6, dAux_max=11, dAux_sum=342
 	"heavyHex74": {0: 0, 1: 1, 2: 3, 3: 4, 4: 5, 5: 2, 6: 9, 7: 8, 8: 7, 9: 6, 10: 10, 11: 14, 12: 13, 13: 12, 14: 16, 15: 17, 16: 11, 17: 18, 18: 20, 19: 15, 20: 19, 21: 23, 22: 22, 23: 21, 24: 25, 25: 28, 26: 26, 27: 24, 28: 27, 29: 29, 30: 36, 31: 32, 32: 30, 33: 31, 34: 35, 35: 34, 36: 33, 37: 37, 38: 41, 39: 38, 40: 39, 41: 45, 42: 40, 43: 42, 44: 46, 45: 44, 46: 43, 47: 47, 48: 51, 49: 50, 50: 49, 51: 48, 52: 54, 53: 55, 54: 53, 55: 52, 56: 56, 57: 60, 58: 59, 59: 58, 60: 62, 61: 66, 62: 57, 63: 64, 64: 70, 65: 61, 66: 63, 67: 65, 68: 67, 69: 68, 70: 69, 71: 73, 72: 72, 73: 71},
 }
