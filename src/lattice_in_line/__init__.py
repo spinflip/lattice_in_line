@@ -1,2 +1,2 @@
-"""Geometry helpers for finite clusters and repeated unit cells."""
+"""Lattice compilation for DMRG: cluster graphs and certified orderings."""
 

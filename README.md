@@ -5,7 +5,7 @@ This repo has two goals:
 1. Generate lattice graphs for density-matrix renormalization group (DMRG) computations (including visualization).
 2. Perform "lattice compilation", i.e. compute an optimal enumeration to best fit the 1D lattice geometry of DMRG.
 
-The corresponding paper reference is: TBA
+The corresponding paper reference is: <https://arxiv.org/abs/2609.25384>
 
 The code for this project was made with heavy use of Fable 5.
 
