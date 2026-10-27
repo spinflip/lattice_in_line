@@ -13,8 +13,8 @@ from collections import deque
 
 __all__ = [
     "adjacency", "bfs_dist", "bandwidth_of", "ceil_div", "combinatorial_lb",
-    "total_range", "load_cluster", "load_edge_file", "get_graph", "State",
-    "print_status",
+    "total_range", "load_cluster", "load_edge_file", "edge_file_labels",
+    "get_graph", "State", "print_status",
 ]
 
 
@@ -30,8 +30,7 @@ def load_cluster(name: str, module_path: str):
     return n, edges
 
 
-def load_edge_file(path: str):
-    idx, edges = {}, set()
+def _edge_file_pairs(path: str):
     with open(path) as f:
         for line in f:
             parts = line.split()
@@ -40,12 +39,32 @@ def load_edge_file(path: str):
             u, v = parts[0], parts[1]
             if u == v:
                 continue
-            for w in (u, v):
-                if w not in idx:
-                    idx[w] = len(idx)
-            a, b = idx[u], idx[v]
-            edges.add((min(a, b), max(a, b)))
+            yield u, v
+
+
+def load_edge_file(path: str):
+    idx, edges = {}, set()
+    for u, v in _edge_file_pairs(path):
+        for w in (u, v):
+            if w not in idx:
+                idx[w] = len(idx)
+        a, b = idx[u], idx[v]
+        edges.add((min(a, b), max(a, b)))
     return len(idx), sorted(edges)
+
+
+def edge_file_labels(path: str):
+    """The file's own vertex labels, indexed by the internal index that
+    load_edge_file assigns to them (first appearance). Export uses this to
+    report layouts in the caller's labels instead of internal indices."""
+    labels = []
+    seen = set()
+    for u, v in _edge_file_pairs(path):
+        for w in (u, v):
+            if w not in seen:
+                seen.add(w)
+                labels.append(w)
+    return labels
 
 
 def get_graph(args):

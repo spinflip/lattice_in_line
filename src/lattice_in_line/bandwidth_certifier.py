@@ -100,7 +100,8 @@ if __package__ in (None, ""):  # bare-script run: make the package importable
 from lattice_in_line.certify.core import *  # noqa: F401,F403
 from lattice_in_line.certify.core import (  # noqa: F401  (explicit re-export)
     State, adjacency, bfs_dist, bandwidth_of, ceil_div, combinatorial_lb,
-    total_range, load_cluster, load_edge_file, get_graph, print_status,
+    total_range, load_cluster, load_edge_file, edge_file_labels, get_graph,
+    print_status,
 )
 
 # ----------------------------------------------------------------------
@@ -948,6 +949,18 @@ def cmd_status(args):
     print_status(st.read(), edges)
 
 
+def _export_keys(args, n):
+    """Keys to print a layout under: the edge file's own vertex labels, or the
+    plain 0..n-1 indices for --cluster graphs, which are not re-indexed.
+    Numeric labels stay ints so the printed map remains a Python literal."""
+    if not getattr(args, "edge_file", None):
+        return list(range(n))
+    labels = edge_file_labels(args.edge_file)
+    if all(w.lstrip("-").isdigit() for w in labels):
+        return [int(w) for w in labels]
+    return labels
+
+
 def cmd_export(args):
     n, edges = get_graph(args)
     st = State(args.state_dir, args.cluster or "edgefile", n, edges)
@@ -955,12 +968,15 @@ def cmd_export(args):
     if not cur["best_labeling"]:
         sys.exit("no labeling in state yet")
     lab = cur["best_labeling"]
-    perm0 = {v: lab[v] - 1 for v in range(n)}   # 0-based {original: new}
+    # 0-based {site: position}. --edge-file graphs are re-indexed internally by
+    # first appearance, so keys are mapped back to the file's own labels.
+    keys = _export_keys(args, n)
+    perm0 = {keys[v]: lab[v] - 1 for v in range(n)}
     if args.json:
         print(json.dumps({str(k): v for k, v in perm0.items()}))
     else:
         # integer-keyed map: valid Python literal, parse with ast.literal_eval
-        print("{" + ", ".join(f"{v}: {perm0[v]}" for v in range(n)) + "}")
+        print("{" + ", ".join(f"{keys[v]!r}: {perm0[keys[v]]}" for v in range(n)) + "}")
 
 
 
@@ -1253,7 +1269,8 @@ def cmd_lex_export(args):
     if not cur["best_labeling"]:
         sys.exit("no labeling in the lex state yet")
     lab = cur["best_labeling"]
-    print("{" + ", ".join(f"{v}: {lab[v] - 1}" for v in range(n)) + "}")
+    keys = _export_keys(args, n)
+    print("{" + ", ".join(f"{keys[v]!r}: {lab[v] - 1}" for v in range(n)) + "}")
 
 
 # ======================================================================
@@ -1810,7 +1827,8 @@ def cmd_h2_export(args):
         sys.exit("no ladder embedding in the state yet")
     lab = cur["best_labeling"]
     print("ladder dilation of this embedding:", h2_value(lab, edges))
-    print("{" + ", ".join(f"{v}: ({(lab[v] - 1) // 2}, {(lab[v] - 1) % 2})"
+    keys = _export_keys(args, n)
+    print("{" + ", ".join(f"{keys[v]!r}: ({(lab[v] - 1) // 2}, {(lab[v] - 1) % 2})"
                           for v in range(n)) + "}")
 
 
@@ -2479,9 +2497,10 @@ def cmd_ss_export(args):
         sys.exit("no supersite assignment in the state yet")
     lab = cur["best_labeling"]
     print("supersite bandwidth of this assignment:", ss_value(lab, edges))
-    print("{" + ", ".join(f"{v}: {lab[v] - 1}" for v in range(n)) + "}")
+    keys = _export_keys(args, n)
+    print("{" + ", ".join(f"{keys[v]!r}: {lab[v] - 1}" for v in range(n)) + "}")
     m = n // args.block
-    blocks = [[v for v in range(n) if lab[v] == r + 1] for r in range(m)]
+    blocks = [[keys[v] for v in range(n) if lab[v] == r + 1] for r in range(m)]
     print("blocks in chain order:", blocks)
 
 
@@ -4044,7 +4063,8 @@ def cmd_cw_export(args):
         print(f"blocked (supersites of {q}): {n_in} edges hidden inside "
               f"blocks, {uncovered} blocks without an internal edge")
         print("(map is {site: 0-based block index})")
-    print("{" + ", ".join(f"{v}: {lab[v] - 1}" for v in range(n)) + "}")
+    keys = _export_keys(args, n)
+    print("{" + ", ".join(f"{keys[v]!r}: {lab[v] - 1}" for v in range(n)) + "}")
 
 
 def main():
